@@ -280,7 +280,28 @@ export default function App() {
         <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1>{tab === "movimientos" && <p className="mv-page-subtitle">Revisá y gestioná todos tus movimientos en un solo lugar.</p>}</div><button className="subtle" onClick={() => void cargar()} disabled={loading}>{loading ? "Cargando…" : "↻ Actualizar"}</button></header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status" onClick={() => setNotice("")}>{notice} ×</div>}
-        {tab === "inicio" && <div className="filtersContainer"><section className="filters"><label>Período<select value={periodo} onChange={e => setPeriodo(e.target.value)}><option value="mes">Mes</option><option value="dia">Día</option><option value="rango">Rango de fechas</option><option value="todo">Todo el historial</option></select></label>{periodo === "mes" && <label>Mes<input type="month" value={mes} onChange={e => setMes(e.target.value)} /></label>}{periodo === "dia" && <label>Fecha<input type="date" value={dia} onChange={e => setDia(e.target.value)} /></label>}{periodo === "rango" && <><label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></label></>}{tab === "movimientos" && <label>Estado<select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}><option value="todos">Todos</option><option value="confirmado">Confirmados</option><option value="pendiente_revision">Pendientes</option><option value="descartado">Descartados</option></select></label>}{tab === "movimientos" && <label className="filterRecipient">Buscar destinatario<input type="search" value={busquedaDestinatario} onChange={e => setBusquedaDestinatario(e.target.value)} placeholder="Nombre o comercio..." autoComplete="off" /></label>}</section></div>}
+        {tab === "inicio" && (
+          <div className="filtersContainer">
+            <section className="filters">
+              <label>Período
+                <select value={periodo} onChange={e => setPeriodo(e.target.value)}>
+                  <option value="mes">Mes</option>
+                  <option value="dia">Día</option>
+                  <option value="rango">Rango de fechas</option>
+                  <option value="todo">Todo el historial</option>
+                </select>
+              </label>
+              {periodo === "mes" && <label>Mes<input type="month" value={mes} onChange={e => setMes(e.target.value)} /></label>}
+              {periodo === "dia" && <label>Fecha<input type="date" value={dia} onChange={e => setDia(e.target.value)} /></label>}
+              {periodo === "rango" && (
+                <>
+                  <label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label>
+                  <label>Hasta<input type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></label>
+                </>
+              )}
+            </section>
+          </div>
+        )}
         {tab === "inicio" && <><section className="stats"><article className="panel stat"><span>Ingresos confirmados</span><strong className="green">{money(ingresos)}</strong></article><article className="panel stat"><span>Gastos confirmados</span><strong>{money(gastos)}</strong></article><article className="panel stat"><span>Balance del período</span><strong className={ingresos - gastos >= 0 ? "green" : "red"}>{money(ingresos - gastos)}</strong></article></section><div className="split"><section className="panel chart"><h2>¿En qué gastaste?</h2>{porCategoria.length === 0 ? <p className="muted">Cuando confirmes tus primeros gastos, aparecerá la distribución por categoría.</p> : <><div className="donut" style={{background:`conic-gradient(${porCategoria.reduce((acc, [, valor], i) => { const start = porCategoria.slice(0, i).reduce((s, x) => s + x[1], 0) / gastos * 100; return acc + `${["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i % 5]} ${start}% ${(start + valor / gastos * 100)}%,`; }, "").slice(0,-1)})`}}><div>{money(gastos)}<small>Total gastos</small></div></div><div className="legend">{porCategoria.map(([nombre, valor], i) => <div key={nombre}><i style={{background:["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i%5]}} />{nombre}<b>{money(valor)}</b></div>)}</div></>}</section><section className="panel"><h2>Por revisar</h2><p className="muted">Los movimientos pendientes todavía no cuentan en el balance.</p><div className="bigNumber">{movimientos.filter(m => m.estado === "pendiente_revision").length}</div><button className="secondary" onClick={() => { setTab("movimientos"); setFiltroEstado("pendiente_revision"); setPeriodo("todo"); }}>Revisar movimientos →</button></section></div></>}
         {tab === "movimientos" && (
           <MovimientosPanel
