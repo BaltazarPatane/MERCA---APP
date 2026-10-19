@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { Home, ListFilter, CirclePlus, Settings2, LogOut, RefreshCcw } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import EditarMovimiento from "./components/EditarMovimiento";
 import GestionCategorias from "./components/GestionCategorias";
 import MovimientosPanel from "./components/MovimientosPanel";
+import InicioPanel from "./components/InicioPanel";
+import NuevoMovimientoPanel from "./components/NuevoMovimientoPanel";
+import AjustesPanel from "./components/AjustesPanel";
 import { montoParaBD } from "./types";
 import type { Categoria, Movimiento } from "./types";
 
 
 type Tab = "inicio" | "movimientos" | "agregar" | "ajustes";
-type Cuenta = { id: string; nombre: string };
-const money = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
+type Cuenta = { id: string; nombre: string; tipo?: string; activa?: boolean };
 const fechaHoy = () => new Date().toLocaleDateString("en-CA");
 const normalizarBusqueda = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").trim();
 const mesHoy = () => fechaHoy().slice(0, 7);
@@ -44,6 +47,7 @@ export default function App() {
   const [montoNuevo, setMontoNuevo] = useState("");
   const [fechaNueva, setFechaNueva] = useState(fechaHoy());
   const [categoriaNueva, setCategoriaNueva] = useState("");
+  const [cuentaNueva, setCuentaNueva] = useState("");
   const [descripcionNueva, setDescripcionNueva] = useState("");
   const [destinatarioNuevo, setDestinatarioNuevo] = useState("");
   const [notice, setNotice] = useState("");
@@ -70,7 +74,7 @@ export default function App() {
     const [mov, cat, cta] = await Promise.all([
       supabase.from("movimientos").select("id,tipo,monto,moneda,fecha,hora,descripcion,destinatario,estado,categoria_id,cuenta_origen_id,cuenta_destino_id").order("fecha", { ascending: false }).limit(3000),
       supabase.from("categorias").select("id,nombre,tipo,activa,color").order("nombre"),
-      supabase.from("cuentas").select("id,nombre").order("nombre"),
+      supabase.from("cuentas").select("id,nombre,tipo,activa").order("nombre"),
     ]);
     if (mov.error || cat.error) setError(mov.error?.message || cat.error?.message || "Error desconocido");
     else {
@@ -92,17 +96,6 @@ export default function App() {
     return filtroEstado === "todos" || m.estado === filtroEstado;
   }), [movimientos, periodo, mes, dia, desde, hasta, filtroEstado, busquedaDestinatario]);
 
-  const confirmados = visibles.filter(m => m.estado === "confirmado");
-  const ingresos = confirmados.filter(m => m.tipo === "ingreso").reduce((a, m) => a + Number(m.monto), 0);
-  const gastos = confirmados.filter(m => m.tipo === "gasto").reduce((a, m) => a + Number(m.monto), 0);
-  const porCategoria = useMemo(() => {
-    const suma = new Map<string, number>();
-    confirmados.filter(m => m.tipo === "gasto").forEach(m => {
-      const nombre = categorias.find(c => c.id === m.categoria_id)?.nombre || "Sin categoría";
-      suma.set(nombre, (suma.get(nombre) || 0) + Number(m.monto));
-    });
-    return [...suma.entries()].sort((a, b) => b[1] - a[1]);
-  }, [visibles, categorias]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -199,12 +192,14 @@ export default function App() {
       tipo: tipoNuevo, monto: importe, moneda: "ARS",
       fecha: fechaNueva, categoria_id: categoriaNueva,
       descripcion: descripcionNueva.trim() || null,
+      cuenta_origen_id: tipoNuevo === "gasto" ? (cuentaNueva || null) : null,
+      cuenta_destino_id: tipoNuevo === "ingreso" ? (cuentaNueva || null) : null,
       destinatario: tipoNuevo === "gasto" ? (destinatarioNuevo.trim() || null) : null,
       origen_registro: "manual", estado: "confirmado",
     });
     setBusy(false);
     if (err) setError(err.message);
-    else { setMontoNuevo(""); setDescripcionNueva(""); setDestinatarioNuevo(""); setCategoriaNueva(""); setNotice("Movimiento agregado correctamente"); setTab("movimientos"); await cargar(); }
+    else { setMontoNuevo(""); setDescripcionNueva(""); setDestinatarioNuevo(""); setCategoriaNueva(""); setCuentaNueva(""); setNotice("Movimiento agregado correctamente"); setTab("movimientos"); await cargar(); }
   }
 
   function exportarCSV() {
@@ -265,19 +260,21 @@ export default function App() {
     </div>
   );
 
-  const opciones = categorias.filter(c => c.tipo === tipoNuevo && c.activa);
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand brandLogo"><img src="/icon.svg" alt="" aria-hidden="true" />MERCA<span>.</span></div>
         <div className="slogan">Control personal de finanzas</div>
-        <nav>{([["inicio","◫","Inicio"],["movimientos","☷","Movimientos"],["agregar","＋","Agregar"],["ajustes","⚙","Ajustes"]] as const).map(([id, icon, label]) =>
-          <button key={id} className={tab === id ? "nav active" : "nav"} onClick={() => { setTab(id); setError(""); }}>{icon} <span>{label}</span></button>
-        )}</nav>
-        <button className="logout" onClick={() => { if (supabase) void supabase.auth.signOut(); }}>Cerrar sesión</button>
+        <nav aria-label="Menú principal">
+          <button className={tab === "inicio" ? "nav active" : "nav"} onClick={() => { setTab("inicio"); setError(""); }}><Home size={19}/> <span>Inicio</span></button>
+          <button className={tab === "movimientos" ? "nav active" : "nav"} onClick={() => { setTab("movimientos"); setError(""); }}><ListFilter size={19}/> <span>Movimientos</span></button>
+          <button className={tab === "agregar" ? "nav active" : "nav"} onClick={() => { setTab("agregar"); setError(""); }}><CirclePlus size={19}/> <span>Agregar</span></button>
+          <button className={tab === "ajustes" ? "nav active" : "nav"} onClick={() => { setTab("ajustes"); setError(""); }}><Settings2 size={19}/> <span>Ajustes</span></button>
+        </nav>
+        <button className="logout" onClick={() => { if (supabase) void supabase.auth.signOut(); }}><LogOut size={17}/> Cerrar sesión</button>
       </aside>
       <main className="appMain">
-        <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1>{tab === "movimientos" && <p className="mv-page-subtitle">Revisá y gestioná todos tus movimientos en un solo lugar.</p>}</div><button className="subtle" onClick={() => void cargar()} disabled={loading}>{loading ? "Cargando…" : "↻ Actualizar"}</button></header>
+        <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1><p className="mv-page-subtitle">{({inicio:"Una mirada clara a tus finanzas personales.",movimientos:"Revisá y gestioná todos tus movimientos en un solo lugar.",agregar:"Registrá gastos e ingresos de manera rápida.",ajustes:"Organizá categorías, cuentas y opciones de respaldo."} as const)[tab]}</p></div><button className="subtle" onClick={() => void cargar()} disabled={loading}><RefreshCcw size={16}/> {loading ? "Cargando…" : "Actualizar"}</button></header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status" onClick={() => setNotice("")}>{notice} ×</div>}
         {tab === "inicio" && (
@@ -340,7 +337,7 @@ export default function App() {
         {tab === "ajustes" && <div className="settingsStack"><GestionCategorias userId={session.user.id} categorias={categorias} onReload={cargar} onError={setError} onNotice={setNotice} /><section className="panel"><h2>Cuenta y respaldo</h2><p className="muted">Sesión: {session.user.email}</p><p>El historial permanece en Supabase. Las imágenes de comprobantes no se almacenan aquí.</p><button className="secondary" onClick={exportarCSV}>Exportar todos los movimientos a CSV</button><p className="muted small">Esta exportación incluye los movimientos consultados en esta sesión (hasta 3000). Antes de considerarla una copia histórica completa implementaremos exportación paginada y restauración.</p></section></div>}
       </main>
       {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
-      <nav className="bottomNav">{([["inicio","⌂","Inicio"],["movimientos","☷","Historial"],["agregar","＋","Agregar"],["ajustes","⚙","Ajustes"]] as const).map(([id,ico,label]) => <button key={id} className={tab === id ? "selected" : ""} onClick={() => setTab(id)}><span>{ico}</span>{label}</button>)}</nav>
+      <nav className="bottomNav" aria-label="Navegación móvil"><button className={tab==="inicio"?"selected":""} onClick={()=>setTab("inicio")}><Home size={22}/>Inicio</button><button className={tab==="movimientos"?"selected":""} onClick={()=>setTab("movimientos")}><ListFilter size={22}/>Historial</button><button className={tab==="agregar"?"selected":""} onClick={()=>setTab("agregar")}><CirclePlus size={22}/>Agregar</button><button className={tab==="ajustes"?"selected":""} onClick={()=>setTab("ajustes")}><Settings2 size={22}/>Ajustes</button></nav>
     </div>
   );
 }
