@@ -10,6 +10,7 @@ export type MovimientoEditado = {
   hora: string | null;
   categoria_id: string | null;
   descripcion: string | null;
+  destinatario: string | null;
   estado: "pendiente_revision" | "confirmado" | "descartado";
 };
 
@@ -28,6 +29,7 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
   const [hora, setHora] = useState(movimiento.hora?.slice(0, 5) ?? "");
   const [categoriaId, setCategoriaId] = useState(movimiento.categoria_id ?? "");
   const [descripcion, setDescripcion] = useState(movimiento.descripcion ?? "");
+  const [destinatario, setDestinatario] = useState(movimiento.destinatario ?? "");
   const [estado, setEstado] = useState(movimiento.estado);
   const [errorLocal, setErrorLocal] = useState("");
 
@@ -61,6 +63,7 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
       hora: hora || null,
       categoria_id: tipo === "transferencia" ? null : categoriaId,
       descripcion: descripcion.trim() || null,
+      destinatario: tipo === "gasto" ? (destinatario.trim() || null) : null,
       estado,
     });
   }
@@ -101,6 +104,9 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
               <option value="">Seleccionar</option>
               {opciones.map(c => <option key={c.id} value={c.id}>{c.nombre}{!c.activa ? " (inactiva)" : ""}</option>)}
             </select>
+          </label>}
+          {tipo === "gasto" && <label>Destinatario o comercio (opcional)
+            <input maxLength={120} value={destinatario} onChange={e => setDestinatario(e.target.value)} placeholder="Ej. Grido" />
           </label>}
           <label>Descripción
             <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="¿Qué fue este movimiento?" />
