@@ -174,7 +174,7 @@ export default function App() {
         <nav>{([["inicio","◫","Inicio"],["movimientos","☷","Movimientos"],["agregar","＋","Agregar"],["ajustes","⚙","Ajustes"]] as const).map(([id, icon, label]) =>
           <button key={id} className={tab === id ? "nav active" : "nav"} onClick={() => { setTab(id); setError(""); }}>{icon} <span>{label}</span></button>
         )}</nav>
-        <button className="logout" onClick={() => void supabase.auth.signOut()}>Cerrar sesión</button>
+        <button className="logout" onClick={() => { if (supabase) void supabase.auth.signOut(); }}>Cerrar sesión</button>
       </aside>
       <main>
         <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1></div><button className="subtle" onClick={() => void cargar()} disabled={loading}>{loading ? "Cargando…" : "↻ Actualizar"}</button></header>
