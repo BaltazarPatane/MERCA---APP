@@ -92,3 +92,52 @@ select option:disabled{color:#9caeaa}
  .filtersContainer{padding-bottom:30px}
  .transaction .recipient{font-size:16px}
 }
+
+/* MERCA: controles de filtro confinados al contenedor, también en Safari iOS.
+   Los input[type=date|month] suelen tener un ancho mínimo interno elevado. */
+.appMain,.filtersContainer,.filters{min-inline-size:0;max-inline-size:100%;box-sizing:border-box}
+.filters{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  align-items:end;
+  gap:14px;
+  width:100%;
+  padding:18px;
+}
+.filters label,.filters .filterRecipient{
+  display:block;
+  width:100%;
+  min-width:0;
+  min-inline-size:0;
+  max-width:100%;
+  margin:0;
+  flex:none;
+}
+.filters input,.filters select{
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  min-inline-size:0;
+  box-sizing:border-box;
+}
+.filters input[type="date"],.filters input[type="month"]{
+  min-width:0;
+  min-inline-size:0;
+  overflow:hidden;
+  padding-inline:12px;
+  color-scheme:dark;
+}
+.filters input[type="date"]::-webkit-date-and-time-value,
+.filters input[type="month"]::-webkit-date-and-time-value{
+  min-width:0;
+  text-align:left;
+}
+@media(max-width:1150px){
+  .filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:580px){
+  .filters{grid-template-columns:minmax(0,1fr);padding:14px}
+}
+.brandLogo{display:flex;align-items:center;gap:11px}
+.brandLogo img{width:34px;height:34px;display:block;object-fit:contain;flex-shrink:0;border-radius:8px}
