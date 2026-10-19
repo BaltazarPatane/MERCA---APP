@@ -3,7 +3,6 @@ import { Home, ListFilter, CirclePlus, Settings2, LogOut, RefreshCcw } from "luc
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import EditarMovimiento from "./components/EditarMovimiento";
-import GestionCategorias from "./components/GestionCategorias";
 import MovimientosPanel from "./components/MovimientosPanel";
 import InicioPanel from "./components/InicioPanel";
 import NuevoMovimientoPanel from "./components/NuevoMovimientoPanel";
@@ -277,29 +276,19 @@ export default function App() {
         <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1><p className="mv-page-subtitle">{({inicio:"Una mirada clara a tus finanzas personales.",movimientos:"Revisá y gestioná todos tus movimientos en un solo lugar.",agregar:"Registrá gastos e ingresos de manera rápida.",ajustes:"Organizá categorías, cuentas y opciones de respaldo."} as const)[tab]}</p></div><button className="subtle" onClick={() => void cargar()} disabled={loading}><RefreshCcw size={16}/> {loading ? "Cargando…" : "Actualizar"}</button></header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status" onClick={() => setNotice("")}>{notice} ×</div>}
-        {tab === "inicio" && (
-          <div className="filtersContainer">
-            <section className="filters">
-              <label>Período
-                <select value={periodo} onChange={e => setPeriodo(e.target.value)}>
-                  <option value="mes">Mes</option>
-                  <option value="dia">Día</option>
-                  <option value="rango">Rango de fechas</option>
-                  <option value="todo">Todo el historial</option>
-                </select>
-              </label>
-              {periodo === "mes" && <label>Mes<input type="month" value={mes} onChange={e => setMes(e.target.value)} /></label>}
-              {periodo === "dia" && <label>Fecha<input type="date" value={dia} onChange={e => setDia(e.target.value)} /></label>}
-              {periodo === "rango" && (
-                <>
-                  <label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label>
-                  <label>Hasta<input type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></label>
-                </>
-              )}
-            </section>
-          </div>
-        )}
-        {tab === "inicio" && <><section className="stats"><article className="panel stat"><span>Ingresos confirmados</span><strong className="green">{money(ingresos)}</strong></article><article className="panel stat"><span>Gastos confirmados</span><strong>{money(gastos)}</strong></article><article className="panel stat"><span>Balance del período</span><strong className={ingresos - gastos >= 0 ? "green" : "red"}>{money(ingresos - gastos)}</strong></article></section><div className="split"><section className="panel chart"><h2>¿En qué gastaste?</h2>{porCategoria.length === 0 ? <p className="muted">Cuando confirmes tus primeros gastos, aparecerá la distribución por categoría.</p> : <><div className="donut" style={{background:`conic-gradient(${porCategoria.reduce((acc, [, valor], i) => { const start = porCategoria.slice(0, i).reduce((s, x) => s + x[1], 0) / gastos * 100; return acc + `${["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i % 5]} ${start}% ${(start + valor / gastos * 100)}%,`; }, "").slice(0,-1)})`}}><div>{money(gastos)}<small>Total gastos</small></div></div><div className="legend">{porCategoria.map(([nombre, valor], i) => <div key={nombre}><i style={{background:["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i%5]}} />{nombre}<b>{money(valor)}</b></div>)}</div></>}</section><section className="panel"><h2>Por revisar</h2><p className="muted">Los movimientos pendientes todavía no cuentan en el balance.</p><div className="bigNumber">{movimientos.filter(m => m.estado === "pendiente_revision").length}</div><button className="secondary" onClick={() => { setTab("movimientos"); setFiltroEstado("pendiente_revision"); setPeriodo("todo"); }}>Revisar movimientos →</button></section></div></>}
+        {tab === "inicio" && <InicioPanel
+          movimientos={movimientos}
+          categorias={categorias}
+          periodo={periodo} mes={mes} dia={dia} desde={desde} hasta={hasta}
+          onPeriodo={setPeriodo} onMes={setMes} onDia={setDia} onDesde={setDesde} onHasta={setHasta}
+          onAgregar={() => setTab("agregar")}
+          onHistorial={(pendientes=false) => {
+            setTab("movimientos");
+            setFiltroEstado(pendientes ? "pendiente_revision" : "todos");
+            setBusquedaDestinatario("");
+            if (pendientes) setPeriodo("todo");
+          }}
+        />}
         {tab === "movimientos" && (
           <MovimientosPanel
             movimientos={visibles}
@@ -333,8 +322,23 @@ export default function App() {
             onCambiarEstado={(id, estado) => void actualizarEstado(id, estado)}
           />
         )}
-        {tab === "agregar" && <section className="panel formPanel"><h2>Carga manual</h2><p className="muted">Ingresá gastos o ingresos que no tengan comprobante.</p><form onSubmit={agregar} className="form"><label>Tipo<select value={tipoNuevo} onChange={e => {setTipoNuevo(e.target.value as "gasto" | "ingreso");setCategoriaNueva("");}}><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></label><label>Importe en ARS<input type="text" inputMode="decimal" required placeholder="15000,50" value={montoNuevo} onChange={e => setMontoNuevo(e.target.value)} /></label><label>Fecha<input type="date" required value={fechaNueva} onChange={e => setFechaNueva(e.target.value)} /></label><label>Categoría<select required value={categoriaNueva} onChange={e => setCategoriaNueva(e.target.value)}><option value="">Seleccionar categoría</option>{opciones.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label>{opciones.length === 0 && <p className="muted">Todavía no tenés categorías de este tipo. Las configuraremos en la siguiente etapa.</p>}{tipoNuevo === "gasto" && <label>Destinatario o comercio (opcional)<input maxLength={120} value={destinatarioNuevo} onChange={e => setDestinatarioNuevo(e.target.value)} placeholder="Ej. Grido" /></label>}<label>Descripción (opcional)<input value={descripcionNueva} onChange={e => setDescripcionNueva(e.target.value)} placeholder="Ej. Almuerzo, sueldo, fútbol…" /></label><button className="primary" disabled={busy || !opciones.length}>{busy ? "Guardando…" : "Guardar movimiento"}</button></form></section>}
-        {tab === "ajustes" && <div className="settingsStack"><GestionCategorias userId={session.user.id} categorias={categorias} onReload={cargar} onError={setError} onNotice={setNotice} /><section className="panel"><h2>Cuenta y respaldo</h2><p className="muted">Sesión: {session.user.email}</p><p>El historial permanece en Supabase. Las imágenes de comprobantes no se almacenan aquí.</p><button className="secondary" onClick={exportarCSV}>Exportar todos los movimientos a CSV</button><p className="muted small">Esta exportación incluye los movimientos consultados en esta sesión (hasta 3000). Antes de considerarla una copia histórica completa implementaremos exportación paginada y restauración.</p></section></div>}
+        {tab === "agregar" && <NuevoMovimientoPanel
+          tipo={tipoNuevo} monto={montoNuevo} fecha={fechaNueva} categoriaId={categoriaNueva}
+          cuentaId={cuentaNueva} destinatario={destinatarioNuevo} descripcion={descripcionNueva}
+          categorias={categorias} cuentas={cuentas.filter(c=>c.activa!==false)} busy={busy}
+          onTipo={tipo => { setTipoNuevo(tipo); setCategoriaNueva(""); setCuentaNueva(""); }}
+          onMonto={setMontoNuevo} onFecha={setFechaNueva} onCategoria={setCategoriaNueva}
+          onCuenta={setCuentaNueva} onDestinatario={setDestinatarioNuevo} onDescripcion={setDescripcionNueva}
+          onGuardar={agregar}
+          onLimpiar={() => { setMontoNuevo(""); setFechaNueva(fechaHoy()); setCuentaNueva(""); setCategoriaNueva(""); setDestinatarioNuevo(""); setDescripcionNueva(""); setError(""); }}
+          onCategorias={() => setTab("ajustes")}
+        />}
+        {tab === "ajustes" && <AjustesPanel
+          userId={session.user.id} email={session.user.email || ""}
+          categorias={categorias} cuentas={cuentas}
+          onReload={cargar} onError={setError} onNotice={setNotice}
+          onExportar={exportarCSV}
+        />}
       </main>
       {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
       <nav className="bottomNav" aria-label="Navegación móvil"><button className={tab==="inicio"?"selected":""} onClick={()=>setTab("inicio")}><Home size={22}/>Inicio</button><button className={tab==="movimientos"?"selected":""} onClick={()=>setTab("movimientos")}><ListFilter size={22}/>Historial</button><button className={tab==="agregar"?"selected":""} onClick={()=>setTab("agregar")}><CirclePlus size={22}/>Agregar</button><button className={tab==="ajustes"?"selected":""} onClick={()=>setTab("ajustes")}><Settings2 size={22}/>Ajustes</button></nav>
