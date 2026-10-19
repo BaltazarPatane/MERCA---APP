@@ -1,42 +1,56 @@
-# Ingesta de comprobantes de MERCA
+# Recepción de comprobantes — MERCA
 
-## Regla
+Este documento describe la integración del atajo de iPhone con la **Supabase Edge Function** `merca-recibir`. El código del receptor instalado actualmente se desplegó manualmente desde Supabase y **no forma parte de la compilación de Cloudflare Pages ni está versionado aquí como fuente completa del backend**.
 
-Los comprobantes compartidos por Atajos generan exclusivamente **gastos**. Los ingresos se crean manualmente desde la aplicación web. El CUIL/CUIT del emisor no determina el tipo.
+## Regla funcional
 
-El atajo envía `POST` a la Edge Function `merca-recibir`, con encabezado `x-merca-token` y cuerpo JSON:
+- Todos los comprobantes compartidos desde **Atajos** se registran como **gastos**.
+- Los **ingresos** se cargan manualmente desde la web.
+- El flujo del atajo no solicita tipo de operación; solicita una **categoría**.
+- Se admite texto extraído de PDF y de imágenes; el procesamiento automático confiable depende del formato del comprobante.
 
-```json
-{"texto_ocr":"texto extraído del PDF o imagen","categoria":"Heladería"}
+## Solicitud del atajo
+
+```http
+POST https://TU-PROYECTO.supabase.co/functions/v1/merca-recibir
+Content-Type: application/json
+x-merca-token: TOKEN_CONFIGURADO_EN_SECRETS
 ```
 
-No enviar `tipo` ni `simular` en el atajo definitivo.
+```json
+{
+  "texto_ocr": "Texto extraído del comprobante",
+  "categoria": "Comida"
+}
+```
 
-## Resultado visible en iPhone
+El token real solo se configura en el atajo privado y en los **Secrets de Supabase**. No se publica en GitHub.
 
-La Edge Function v7 devuelve únicamente **texto plano**:
+## Extracción y validación
 
-- `Movimiento cargado exitosamente`: gasto validado y confirmado, o comprobante ya registrado como confirmado.
-- `Transacción a confirmar`: gasto guardado como pendiente de revisión; por ejemplo, formato desconocido o categoría inactiva.
-- `Error al cargar el movimiento`: no se pudo registrar por datos inválidos, error de autenticación, de conexión o de base de datos.
+El receptor utilizado durante el desarrollo contempla:
 
+1. Lectura de importes y fechas en formatos usuales argentinos y algunas variantes de PDF de Mercado Pago.
+2. Manejo de centavos en superíndice o unidos al importe tras la extracción de texto.
+3. Detección de horas y referencias de operación cuando aparecen.
+4. Priorización de nombre de destinatario, con alternativa de **alias, CBU/CVU u otro identificador de destino inequívoco**. No confundir origen y destino.
+5. Prevención de duplicados por referencia de operación o huella del texto.
+6. Registro `confirmado` cuando el comprobante es confiable, `pendiente_revision` cuando admite revisión; rechazo si no se puede guardar correctamente.
 
-No presentar `exito` para simulaciones. No reenviar comprobantes para resolver `por confirmar`: abrir el historial web y revisar.
+No se debe inferir un importe dudoso. Tampoco se almacenan imágenes, PDF ni OCR completo en la tabla de movimientos. Si se vuelve a compartir una operación existente, el receptor puede mejorar un destinatario vacío o poco descriptivo sin volver a contabilizar el gasto.
 
-## Destinatario
+## Mensajes del atajo
 
-Desde v6 se extrae el comercio/destinatario cuando aparece con una estructura o etiqueta reconocible; puede ser NULL y se puede corregir en la web. No guardar CUIL/CUIT ni texto OCR completo.
+| Respuesta | Significado |
+| --- | --- |
+| `Movimiento cargado exitosamente` | Guardado confirmado o duplicado ya confirmado. |
+| `Transacción a confirmar` | Guardado en estado pendiente de revisión. |
+| `Error al cargar el movimiento` | La solicitud no produjo un registro válido. |
 
-**Orden de instalación:**
-1. Ejecutar `supabase/migrations/20261019_destinatario_movimientos.sql` en Supabase SQL Editor.
-2. Fusionar la PR de interfaz web y verificar Cloudflare Pages.
-3. Pegar/desplegar el archivo completo `merca-recibir-v6-destinatario.ts` en Supabase Edge Functions > merca-recibir. Por el momento se entrega fuera del repositorio.
-4. Eliminar `tipo` y `simular` de Atajos. `Obtener contenido de URL` debe conservar `texto_ocr` y `categoria`; mostrar directamente la respuesta como texto, sin intentar analizar JSON.
+## Diferencia entre los despliegues
 
-No compartir tokens ni claves de administrador en el repositorio público.
+- **Frontend:** React, TypeScript y Vite; se publica desde `main` mediante Cloudflare Pages.
+- **Backend de comprobantes:** Edge Function `merca-recibir`; se configura y actualiza manualmente en el proyecto Supabase.
+- **Base de datos:** PostgreSQL y políticas RLS. La migración pública `supabase/migrations/20261019_destinatario_movimientos.sql` incorpora el campo `destinatario` a un esquema de base de datos previamente configurado.
 
-## Destinatarios personales (v7)
-
-La extracción reconoce nombres etiquetados como destinatario/beneficiario/titular destino y bloques «Origen y destino» donde los nombres aparecen asociados a CUIL/CUIT/CBU/CVU. Se filtran números de cuentas y etiquetas bancarias: **el CVU no es un nombre**. Si falta el nombre en el comprobante, se deja NULL y se puede editar en la web. Al reenviar un comprobante ya existente, solo se completa/corrige un destinatario vacío o numérico si aparece un nombre inequívoco: no cambia ningún importe, estado ni fecha.
-
-En la pestaña Movimientos se puede buscar por destinatario y combinar la búsqueda con los filtros existentes, sin importar mayúsculas o tildes. Para actualizar la Edge Function se copia el archivo v7 íntegro en Supabase > Edge Functions > merca-recibir > Code > Deploy. Su código NO se despliega automáticamente mediante Cloudflare/GitHub Pages.
+Para conocer la arquitectura y las funcionalidades de la aplicación, consultar el [README principal](../README.md).
