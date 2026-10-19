@@ -29,6 +29,11 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(() => window.location.hash.includes("type=recovery"));
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("inicio");
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
@@ -55,7 +60,8 @@ export default function App() {
       setSession(data.session);
       setStarting(false);
     }).catch(() => setStarting(false));
-    const { data } = client.auth.onAuthStateChange((_event, next) => {
+    const { data } = client.auth.onAuthStateChange((event, next) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(next);
     });
     return () => data.subscription.unsubscribe();
@@ -108,6 +114,50 @@ export default function App() {
     setBusy(false);
   }
 
+  async function enviarRecuperacion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setBusy(true);
+    setAuthError("");
+    setRecoveryMessage("");
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    });
+    setBusy(false);
+    if (err) {
+      setAuthError(err.message);
+    } else {
+      setRecoveryMessage("Si el correo está autorizado para recibir mensajes de Supabase, te llegará un enlace para elegir una contraseña nueva. Revisá también spam.");
+    }
+  }
+
+  async function guardarNuevaContrasena(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    if (newPassword.length < 12) {
+      setAuthError("Usá una contraseña de al menos 12 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setAuthError("Las contraseñas no coinciden.");
+      return;
+    }
+    setBusy(true);
+    setAuthError("");
+    const { error: err } = await supabase.auth.updateUser({ password: newPassword });
+    setBusy(false);
+    if (err) {
+      setAuthError(err.message);
+    } else {
+      setNewPassword("");
+      setConfirmPassword("");
+      setRecoveryMode(false);
+      setShowPasswordReset(false);
+      setNotice("Contraseña actualizada. Tu sesión está iniciada.");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }
+
   async function actualizarEstado(id: string, estado: string) {
     if (!supabase) return;
     setBusy(true);
@@ -151,6 +201,33 @@ export default function App() {
 
   if (!supabase) return <div className="centered"><div className="panel auth"><div className="brand">MERCA<span>.</span></div><h1>Configuración pendiente</h1><p>La aplicación ya está preparada. Falta configurar <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> en Cloudflare Pages.</p><p>No publiques claves administrativas ni el token de Atajos.</p></div></div>;
   if (starting) return <div className="centered">Iniciando MERCA…</div>;
+  if (recoveryMode) return (
+    <div className="centered">
+      <form onSubmit={guardarNuevaContrasena} className="panel auth">
+        <div className="brand">MERCA<span>.</span></div>
+        <h1>Elegí una contraseña nueva</h1>
+        {!session && <p>Validando el enlace de recuperación… Si tarda demasiado, volvé a solicitarlo.</p>}
+        <label>Contraseña nueva<input type="password" autoComplete="new-password" minLength={12} required value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label>
+        <label>Repetir contraseña<input type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></label>
+        {authError && <div className="message error" role="alert">{authError}</div>}
+        <button type="submit" className="primary" disabled={busy || !session}>{busy ? "Actualizando…" : "Establecer contraseña"}</button>
+      </form>
+    </div>
+  );
+  if (showPasswordReset && !session) return (
+    <div className="centered">
+      <form onSubmit={enviarRecuperacion} className="panel auth">
+        <div className="brand">MERCA<span>.</span></div>
+        <h1>Recuperar acceso</h1>
+        <p>Escribí el correo del usuario que creaste en Supabase.</p>
+        <label>Correo electrónico<input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" /></label>
+        {authError && <div className="message error" role="alert">{authError}</div>}
+        {recoveryMessage && <div className="message success" role="status">{recoveryMessage}</div>}
+        <button className="primary" disabled={busy}>{busy ? "Enviando…" : "Enviar enlace de recuperación"}</button>
+        <button type="button" className="secondary" onClick={() => { setShowPasswordReset(false); setAuthError(""); setRecoveryMessage(""); }}>Volver a iniciar sesión</button>
+      </form>
+    </div>
+  );
   if (!session) return (
     <div className="centered">
       <form onSubmit={login} className="panel auth">
@@ -161,6 +238,7 @@ export default function App() {
         <label>Contraseña<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></label>
         {authError && <div className="message error" role="alert">{authError}</div>}
         <button className="primary" disabled={busy}>{busy ? "Ingresando…" : "Iniciar sesión"}</button>
+        <button type="button" className="secondary" onClick={() => { setShowPasswordReset(true); setAuthError(""); }}>¿Olvidaste tu contraseña?</button>
       </form>
     </div>
   );
