@@ -6,6 +6,7 @@ export type Movimiento = {
   fecha: string;
   hora: string | null;
   descripcion: string | null;
+  destinatario: string | null;
   estado: "pendiente_revision" | "confirmado" | "descartado";
   categoria_id: string | null;
   cuenta_origen_id?: string | null;
