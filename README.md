@@ -56,11 +56,11 @@ El recorrido de un comprobante es el siguiente:
 1. Se obtiene un comprobante de pago o transferencia en el iPhone.
 2. Desde **Compartir**, se ejecuta el atajo de MERCA.
 3. El atajo obtiene el texto del **PDF** o extrae texto de una **imagen** y permite elegir la categoría.
-4. Se envía una solicitud HTTPS a la **Supabase Edge Function** \`merca-recibir\`.
+4. Se envía una solicitud HTTPS a la **Supabase Edge Function** `merca-recibir`.
 5. El servidor interpreta y valida la información, busca duplicados y, cuando corresponde, registra el movimiento en PostgreSQL.
 6. La aplicación web consulta los movimientos mediante Supabase y los incorpora al historial, los filtros y las estadísticas.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
     A["Comprobante PDF o imagen"] --> B["Atajos iOS"]
     B --> C["Extracción de texto / OCR"]
@@ -74,7 +74,7 @@ flowchart LR
     H --> J
     J --> K["Web MERCA"]
     K --> L["Historial · Filtros · Gráficos"]
-\`\`\`
+```
 
 ### Procesamiento y criterio de confiabilidad
 
@@ -140,18 +140,19 @@ La creación o administración de cuentas bancarias desde esta pantalla **no est
 
 MERCA separa la interfaz, la autenticación, la recepción de comprobantes y el almacenamiento:
 
-\`\`\`mermaid
+```mermaid
 flowchart TB
     subgraph CLIENTES["Clientes"]
       A["iPhone · Atajos"] 
       W["Web responsive · PC / iPhone"]
     end
     A -->|"POST + x-merca-token"| E["Edge Function merca-recibir"]
-    E -->|"Inserción y antduplicados"| DB[("Supabase PostgreSQL")]
+    E -->|"Inserción y control de duplicados"| DB[("Supabase PostgreSQL")]
     W -->|"Login"| AUTH["Supabase Authentication"]
     W -->|"Consultas bajo RLS"| DB
-    W -. "Publicada por GitHub" .-> C["Cloudflare Pages"]
-\`\`\`
+    GH["GitHub · main"] -->|"Publicación"| C["Cloudflare Pages"]
+    C -->|"Entrega la web"| W
+```
 
 ### Tecnologías empleadas
 
@@ -165,7 +166,7 @@ flowchart TB
 | **Supabase JavaScript SDK** | Acceso autenticado a datos desde la web. |
 | **Supabase Auth** | Gestión de usuarios y sesiones. |
 | **Supabase PostgreSQL** | Persistencia de cuentas, categorías y movimientos. |
-| **Row Level Security (RLS)** | Aislamiento de registros mediante \`user_id\`. |
+| **Row Level Security (RLS)** | Aislamiento de registros mediante `user_id`. |
 | **Supabase Edge Functions** | Recepción HTTPS y procesamiento de comprobantes. |
 | **Atajos de iOS / OCR** | Captura y extracción de texto al compartir archivos. |
 | **Cloudflare Pages** | Alojamiento y publicación del frontend conectado a GitHub. |
@@ -177,11 +178,11 @@ La información principal se distribuye en tres tablas:
 
 | Tabla | Datos relevantes |
 | --- | --- |
-| \`categorias\` | Usuario, nombre, tipo (\`gasto\`/\`ingreso\`), color y estado activo. |
-| \`cuentas\` | Usuario, nombre, tipo de cuenta, moneda y estado. |
-| \`movimientos\` | Usuario, tipo, importe, fecha, hora, categoría, cuentas asociadas, destinatario, descripción, origen del registro, referencia externa y estado. |
+| `categorias` | Usuario, nombre, tipo (`gasto`/`ingreso`), color y estado activo. |
+| `cuentas` | Usuario, nombre, tipo de cuenta, moneda y estado. |
+| `movimientos` | Usuario, tipo, importe, fecha, hora, categoría, cuentas asociadas, destinatario, descripción, origen del registro, referencia externa y estado. |
 
-Los movimientos admiten los estados \`confirmado\`, \`pendiente_revision\` y \`descartado\`. La base de datos utiliza claves foráneas y políticas RLS para evitar que un usuario consulte o modifique registros ajenos.
+Los movimientos admiten los estados `confirmado`, `pendiente_revision` y `descartado`. La base de datos utiliza claves foráneas y políticas RLS para evitar que un usuario consulte o modifique registros ajenos.
 
 La información se guarda de forma estructurada; **no se conservan los PDF, las imágenes ni el texto OCR completo** como historial de comprobantes.
 
@@ -195,34 +196,34 @@ La información se guarda de forma estructurada; **no se conservan los PDF, las 
 
 ### 1. Ejecutar el frontend
 
-\`\`\`bash
+```bash
 git clone https://github.com/BaltazarPatane/MERCA-APP.git
 cd MERCA-APP
 npm install
 cp .env.example .env
-\`\`\`
+```
 
-Completar en \`.env\` las **variables publicables** del proyecto Supabase:
+Completar en `.env` las **variables publicables** del proyecto Supabase:
 
-\`\`\`dotenv
+```dotenv
 VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=TU_CLAVE_PUBLICABLE
-\`\`\`
+```
 
 Iniciar el entorno local:
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 Para compilar y previsualizar:
 
-\`\`\`bash
+```bash
 npm run build
 npm run preview
-\`\`\`
+```
 
-> El repositorio incluye la aplicación web y una migración para \`destinatario\`, pero **no incluye una instalación automatizada del esquema completo de PostgreSQL ni el despliegue completo de la Edge Function**. Para replicar toda la solución es necesario configurar esos componentes en un proyecto Supabase propio.
+> El repositorio incluye la aplicación web y una migración para `destinatario`, pero **no incluye una instalación automatizada del esquema completo de PostgreSQL ni el despliegue completo de la Edge Function**. Para replicar toda la solución es necesario configurar esos componentes en un proyecto Supabase propio.
 
 ### 2. Publicar en Cloudflare Pages
 
@@ -230,31 +231,31 @@ La configuración del frontend es:
 
 | Parámetro | Valor |
 | --- | --- |
-| Repositorio | \`BaltazarPatane/MERCA-APP\` |
-| Rama de producción | \`main\` |
+| Repositorio | `BaltazarPatane/MERCA-APP` |
+| Rama de producción | `main` |
 | Framework | React / Vite |
-| Comando de compilación | \`npm run build\` |
-| Carpeta de salida | \`dist\` |
-| Variables públicas | \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\` |
+| Comando de compilación | `npm run build` |
+| Carpeta de salida | `dist` |
+| Variables públicas | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` |
 
-Los commits integrados a \`main\` pueden desplegarse automáticamente a través de la integración de GitHub con Cloudflare Pages. La configuración del backend de Supabase es independiente.
+Los commits integrados a `main` pueden desplegarse automáticamente a través de la integración de GitHub con Cloudflare Pages. La configuración del backend de Supabase es independiente.
 
 ### 3. Configurar el atajo en el iPhone
 
 El atajo de uso personal recibe contenido desde el menú **Compartir** de iOS, obtiene texto del PDF o imagen, permite elegir categoría y envía:
 
-\`\`\`json
+```json
 {
   "texto_ocr": "Contenido extraído del comprobante",
   "categoria": "Comida"
 }
-\`\`\`
+```
 
-a la función HTTPS \`merca-recibir\`. La autenticación se realiza mediante el encabezado \`x-merca-token\`, cuyo valor debe coincidir con un secreto configurado exclusivamente en el backend.
+a la función HTTPS `merca-recibir`. La autenticación se realiza mediante el encabezado `x-merca-token`, cuyo valor debe coincidir con un secreto configurado exclusivamente en el backend.
 
 Los **secretos administrativos, el token del atajo y cualquier clave de servicio** no deben incorporarse al frontend ni subirse a GitHub.
 
-El código de la Edge Function utilizada en el despliegue del proyecto se administró y publicó **por separado desde Supabase**; la documentación histórica de su integración se encuentra en [\`docs/comprobantes.md\`](docs/comprobantes.md). No se debe confundir el despliegue de Cloudflare Pages con el de la función.
+El código de la Edge Function utilizada en el despliegue del proyecto se administró y publicó **por separado desde Supabase**; la documentación histórica de su integración se encuentra en [`docs/comprobantes.md`](docs/comprobantes.md). No se debe confundir el despliegue de Cloudflare Pages con el de la función.
 
 ## Seguridad y privacidad
 
@@ -284,7 +285,7 @@ El endpoint de ingesta desde Atajos está configurado para un **usuario propieta
 
 ## Estructura del repositorio
 
-\`\`\`text
+```text
 MERCA-APP/
 ├── public/
 │   ├── icon.svg                  # Favicon y marca
@@ -312,7 +313,7 @@ MERCA-APP/
 ├── index.html
 ├── package.json
 └── README.md
-\`\`\`
+```
 
 ## Alcance actual y mejoras posibles
 
