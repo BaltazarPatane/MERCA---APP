@@ -227,12 +227,12 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  if (!supabase) return <div className="centered"><div className="panel auth"><div className="brand">MERCA<span>.</span></div><h1>Configuración pendiente</h1><p>La aplicación ya está preparada. Falta configurar <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> en Cloudflare Pages.</p><p>No publiques claves administrativas ni el token de Atajos.</p></div></div>;
+  if (!supabase) return <div className="centered"><div className="panel auth"><div className="brand brandLogo"><img src="/icon.svg" alt="" aria-hidden="true" />MERCA<span>.</span></div><h1>Configuración pendiente</h1><p>La aplicación ya está preparada. Falta configurar <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> en Cloudflare Pages.</p><p>No publiques claves administrativas ni el token de Atajos.</p></div></div>;
   if (starting) return <div className="centered">Iniciando MERCA…</div>;
   if (recoveryMode) return (
     <div className="centered">
       <form onSubmit={guardarNuevaContrasena} className="panel auth">
-        <div className="brand">MERCA<span>.</span></div>
+        <div className="brand brandLogo"><img src="/icon.svg" alt="" aria-hidden="true" />MERCA<span>.</span></div>
         <h1>Elegí una contraseña nueva</h1>
         {!session && <p>Validando el enlace de recuperación… Si tarda demasiado, volvé a solicitarlo.</p>}
         <label>Contraseña nueva<input type="password" autoComplete="new-password" minLength={12} required value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label>
@@ -245,7 +245,7 @@ export default function App() {
   if (showPasswordReset && !session) return (
     <div className="centered">
       <form onSubmit={enviarRecuperacion} className="panel auth">
-        <div className="brand">MERCA<span>.</span></div>
+        <div className="brand brandLogo"><img src="/icon.svg" alt="" aria-hidden="true" />MERCA<span>.</span></div>
         <h1>Recuperar acceso</h1>
         <p>Escribí el correo del usuario que creaste en Supabase.</p>
         <label>Correo electrónico<input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" /></label>
@@ -259,7 +259,7 @@ export default function App() {
   if (!session) return (
     <div className="centered">
       <form onSubmit={login} className="panel auth">
-        <div className="brand">MERCA<span>.</span></div>
+        <div className="brand brandLogo"><img src="/icon.svg" alt="" aria-hidden="true" />MERCA<span>.</span></div>
         <h1>Tus finanzas, claras.</h1>
         <p>Ingresá con tu cuenta personal de MERCA.</p>
         <label>Correo electrónico<input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" /></label>
@@ -275,7 +275,7 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">MERCA<span>.</span></div>
+        <div className="brand brandLogo"><img src="/icon.svg" alt="" aria-hidden="true" />MERCA<span>.</span></div>
         <div className="slogan">Control personal de finanzas</div>
         <nav>{([["inicio","◫","Inicio"],["movimientos","☷","Movimientos"],["agregar","＋","Agregar"],["ajustes","⚙","Ajustes"]] as const).map(([id, icon, label]) =>
           <button key={id} className={tab === id ? "nav active" : "nav"} onClick={() => { setTab(id); setError(""); }}>{icon} <span>{label}</span></button>
