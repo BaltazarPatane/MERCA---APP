@@ -14,11 +14,12 @@ No enviar `tipo` ni `simular` en el atajo definitivo.
 
 ## Resultado visible en iPhone
 
-La Edge Function v6 devuelve únicamente **texto plano**:
+La Edge Function v7 devuelve únicamente **texto plano**:
 
-- `exito`: gasto validado y confirmado; o comprobante ya registrado como confirmado.
-- `por confirmar`: el gasto se guardó como pendiente y puede revisarse en MERCA; incluye formatos no validados, cifras potencialmente ambiguas con fecha única o categorías inactivas.
-- `error`: no se pudo registrar (por ejemplo, sin fecha o importe único y válido, error de autenticación, fallo de base de datos o duplicado descartado).
+- `Movimiento cargado exitosamente`: gasto validado y confirmado, o comprobante ya registrado como confirmado.
+- `Transacción a confirmar`: gasto guardado como pendiente de revisión; por ejemplo, formato desconocido o categoría inactiva.
+- `Error al cargar el movimiento`: no se pudo registrar por datos inválidos, error de autenticación, de conexión o de base de datos.
+
 
 No presentar `exito` para simulaciones. No reenviar comprobantes para resolver `por confirmar`: abrir el historial web y revisar.
 
@@ -33,3 +34,9 @@ Desde v6 se extrae el comercio/destinatario cuando aparece con una estructura o 
 4. Eliminar `tipo` y `simular` de Atajos. `Obtener contenido de URL` debe conservar `texto_ocr` y `categoria`; mostrar directamente la respuesta como texto, sin intentar analizar JSON.
 
 No compartir tokens ni claves de administrador en el repositorio público.
+
+## Destinatarios personales (v7)
+
+La extracción reconoce nombres etiquetados como destinatario/beneficiario/titular destino y bloques «Origen y destino» donde los nombres aparecen asociados a CUIL/CUIT/CBU/CVU. Se filtran números de cuentas y etiquetas bancarias: **el CVU no es un nombre**. Si falta el nombre en el comprobante, se deja NULL y se puede editar en la web. Al reenviar un comprobante ya existente, solo se completa/corrige un destinatario vacío o numérico si aparece un nombre inequívoco: no cambia ningún importe, estado ni fecha.
+
+En la pestaña Movimientos se puede buscar por destinatario y combinar la búsqueda con los filtros existentes, sin importar mayúsculas o tildes. Para actualizar la Edge Function se copia el archivo v7 íntegro en Supabase > Edge Functions > merca-recibir > Code > Deploy. Su código NO se despliega automáticamente mediante Cloudflare/GitHub Pages.
