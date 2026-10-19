@@ -48,3 +48,25 @@ select option:disabled{color:#9caeaa}
 .transaction .recipient{margin-top:6px;color:#e4f4ef;font-size:12px;overflow-wrap:anywhere}
 .transaction .recipient span{color:#6ae5bc;font-weight:700;margin-right:4px}
 @media (prefers-reduced-motion:reduce){select{transition:none}}
+
+/* Barra de filtros separada visualmente del historial */
+.filters{
+  background:#10252a;
+  border:1px solid #304a4e;
+  border-radius:17px;
+  padding:18px;
+  margin:24px 0 26px;
+  column-gap:14px;
+  row-gap:16px;
+  align-items:flex-end;
+}
+.filters label{flex:1 1 176px;min-width:145px}
+.filters .filterRecipient{flex:1.4 1 235px}
+.filters input[type="search"]{min-height:46px}
+.filters input[type="search"]::-webkit-search-cancel-button{cursor:pointer}
+.filters input:focus-visible{outline:2px solid #5ce1bd;outline-offset:2px}
+@media(max-width:650px){
+  .filters{padding:14px;gap:13px;margin:18px 0 24px}
+  .filters label{flex:1 1 140px;min-width:0}
+  .filters .filterRecipient{flex:1 1 100%}
+}
