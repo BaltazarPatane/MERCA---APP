@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import EditarMovimiento from "./components/EditarMovimiento";
+import GestionCategorias from "./components/GestionCategorias";
+import { montoParaBD } from "./types";
+import type { Categoria, Movimiento } from "./types";
 
-type Movimiento = {
-  id: string;
-  tipo: string;
-  monto: number;
-  moneda: string;
-  fecha: string;
-  hora: string | null;
-  descripcion: string | null;
-  estado: string;
-  categoria_id: string | null;
-};
-type Categoria = { id: string; nombre: string; tipo: string };
+
 type Tab = "inicio" | "movimientos" | "agregar" | "ajustes";
 const money = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
 const fechaHoy = () => new Date().toLocaleDateString("en-CA");
@@ -52,6 +45,7 @@ export default function App() {
   const [categoriaNueva, setCategoriaNueva] = useState("");
   const [descripcionNueva, setDescripcionNueva] = useState("");
   const [notice, setNotice] = useState("");
+  const [editando, setEditando] = useState<Movimiento | null>(null);
 
   useEffect(() => {
     if (!supabase) { setStarting(false); return; }
@@ -72,8 +66,8 @@ export default function App() {
     setLoading(true);
     setError("");
     const [mov, cat] = await Promise.all([
-      supabase.from("movimientos").select("id,tipo,monto,moneda,fecha,hora,descripcion,estado,categoria_id").order("fecha", { ascending: false }).limit(3000),
-      supabase.from("categorias").select("id,nombre,tipo").order("nombre"),
+      supabase.from("movimientos").select("id,tipo,monto,moneda,fecha,hora,descripcion,estado,categoria_id,cuenta_origen_id,cuenta_destino_id").order("fecha", { ascending: false }).limit(3000),
+      supabase.from("categorias").select("id,nombre,tipo,activa,color").order("nombre"),
     ]);
     if (mov.error || cat.error) setError(mov.error?.message || cat.error?.message || "Error desconocido");
     else {
@@ -167,11 +161,31 @@ export default function App() {
     else { setNotice(estado === "confirmado" ? "Movimiento confirmado" : "Movimiento descartado"); await cargar(); }
   }
 
+  async function guardarEdicion(data: {
+    tipo: "gasto" | "ingreso" | "transferencia";
+    monto: string;
+    fecha: string;
+    hora: string | null;
+    categoria_id: string | null;
+    descripcion: string | null;
+    estado: "pendiente_revision" | "confirmado" | "descartado";
+  }) {
+    if (!supabase || !editando) return;
+    setBusy(true);
+    setError("");
+    const { error: err } = await supabase.from("movimientos").update({
+      ...data, updated_at: new Date().toISOString(),
+    }).eq("id", editando.id);
+    setBusy(false);
+    if (err) setError("No se pudieron guardar los cambios: " + err.message);
+    else { setEditando(null); setNotice("Movimiento actualizado"); await cargar(); }
+  }
+
   async function agregar(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase || !session) return;
-    const importe = Number(montoNuevo.replace(",", "."));
-    if (!Number.isFinite(importe) || importe <= 0 || !fechaNueva || !categoriaNueva) { setError("Revisá el importe, la fecha y la categoría."); return; }
+    const importe = montoParaBD(montoNuevo);
+    if (!importe || !fechaNueva || !categoriaNueva) { setError("Revisá el importe, la fecha y la categoría."); return; }
     setBusy(true); setError("");
     const { error: err } = await supabase.from("movimientos").insert({
       user_id: session.user.id,
@@ -243,7 +257,7 @@ export default function App() {
     </div>
   );
 
-  const opciones = categorias.filter(c => c.tipo === tipoNuevo);
+  const opciones = categorias.filter(c => c.tipo === tipoNuevo && c.activa);
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -260,10 +274,11 @@ export default function App() {
         {notice && <div className="message success" role="status" onClick={() => setNotice("")}>{notice} ×</div>}
         {(tab === "inicio" || tab === "movimientos") && <section className="filters"><label>Período<select value={periodo} onChange={e => setPeriodo(e.target.value)}><option value="mes">Mes</option><option value="dia">Día</option><option value="rango">Rango de fechas</option><option value="todo">Todo el historial</option></select></label>{periodo === "mes" && <label>Mes<input type="month" value={mes} onChange={e => setMes(e.target.value)} /></label>}{periodo === "dia" && <label>Fecha<input type="date" value={dia} onChange={e => setDia(e.target.value)} /></label>}{periodo === "rango" && <><label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></label></>}{tab === "movimientos" && <label>Estado<select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}><option value="todos">Todos</option><option value="confirmado">Confirmados</option><option value="pendiente_revision">Pendientes</option><option value="descartado">Descartados</option></select></label>}</section>}
         {tab === "inicio" && <><section className="stats"><article className="panel stat"><span>Ingresos confirmados</span><strong className="green">{money(ingresos)}</strong></article><article className="panel stat"><span>Gastos confirmados</span><strong>{money(gastos)}</strong></article><article className="panel stat"><span>Balance del período</span><strong className={ingresos - gastos >= 0 ? "green" : "red"}>{money(ingresos - gastos)}</strong></article></section><div className="split"><section className="panel chart"><h2>¿En qué gastaste?</h2>{porCategoria.length === 0 ? <p className="muted">Cuando confirmes tus primeros gastos, aparecerá la distribución por categoría.</p> : <><div className="donut" style={{background:`conic-gradient(${porCategoria.reduce((acc, [, valor], i) => { const start = porCategoria.slice(0, i).reduce((s, x) => s + x[1], 0) / gastos * 100; return acc + `${["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i % 5]} ${start}% ${(start + valor / gastos * 100)}%,`; }, "").slice(0,-1)})`}}><div>{money(gastos)}<small>Total gastos</small></div></div><div className="legend">{porCategoria.map(([nombre, valor], i) => <div key={nombre}><i style={{background:["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i%5]}} />{nombre}<b>{money(valor)}</b></div>)}</div></>}</section><section className="panel"><h2>Por revisar</h2><p className="muted">Los movimientos pendientes todavía no cuentan en el balance.</p><div className="bigNumber">{movimientos.filter(m => m.estado === "pendiente_revision").length}</div><button className="secondary" onClick={() => { setTab("movimientos"); setFiltroEstado("pendiente_revision"); setPeriodo("todo"); }}>Revisar movimientos →</button></section></div></>}
-        {tab === "movimientos" && <section className="panel"><div className="sectionTitle"><h2>Historial</h2><span>{visibles.length} movimientos</span></div>{visibles.length === 0 ? <p className="muted">No hay movimientos para el período seleccionado.</p> : <div className="transactionList">{visibles.map(m => <article className="transaction" key={m.id}><div><div className="transactionTitle">{categorias.find(c => c.id === m.categoria_id)?.nombre || "Sin categoría"} <span className={"pill " + m.estado}>{m.estado.replace("_", " ")}</span></div><p>{fechaLegible(m.fecha)} · {m.descripcion || (m.tipo === "ingreso" ? "Ingreso" : "Gasto")}</p>{m.estado === "pendiente_revision" && <div className="actions"><button disabled={busy} className="mini primary" onClick={() => void actualizarEstado(m.id, "confirmado")}>Confirmar</button><button disabled={busy} className="mini secondary" onClick={() => void actualizarEstado(m.id, "descartado")}>Descartar</button></div>}</div><strong className={m.tipo === "ingreso" ? "green" : ""}>{m.tipo === "ingreso" ? "+" : m.tipo === "gasto" ? "−" : ""}{money(Number(m.monto))}</strong></article>)}</div>}</section>}
+        {tab === "movimientos" && <section className="panel"><div className="sectionTitle"><h2>Historial</h2><span>{visibles.length} movimientos</span></div>{visibles.length === 0 ? <p className="muted">No hay movimientos para el período seleccionado.</p> : <div className="transactionList">{visibles.map(m => <article className="transaction" key={m.id}><div><div className="transactionTitle">{categorias.find(c => c.id === m.categoria_id)?.nombre || "Sin categoría"} <span className={"pill " + m.estado}>{m.estado.replace("_", " ")}</span></div><p>{fechaLegible(m.fecha)} · {m.descripcion || (m.tipo === "ingreso" ? "Ingreso" : "Gasto")}</p>{m.estado === "pendiente_revision" && <div className="actions"><button disabled={busy} className="mini primary" onClick={() => void actualizarEstado(m.id, "confirmado")}>Confirmar</button><button disabled={busy} className="mini secondary" onClick={() => void actualizarEstado(m.id, "descartado")}>Descartar</button></div>}<button className="mini secondary editButton" disabled={busy} onClick={() => setEditando(m)}>Editar</button></div><strong className={m.tipo === "ingreso" ? "green" : ""}>{m.tipo === "ingreso" ? "+" : m.tipo === "gasto" ? "−" : ""}{money(Number(m.monto))}</strong></article>)}</div>}</section>}
         {tab === "agregar" && <section className="panel formPanel"><h2>Carga manual</h2><p className="muted">Ingresá gastos o ingresos que no tengan comprobante.</p><form onSubmit={agregar} className="form"><label>Tipo<select value={tipoNuevo} onChange={e => {setTipoNuevo(e.target.value as "gasto" | "ingreso");setCategoriaNueva("");}}><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></label><label>Importe en ARS<input type="text" inputMode="decimal" required placeholder="15000,50" value={montoNuevo} onChange={e => setMontoNuevo(e.target.value)} /></label><label>Fecha<input type="date" required value={fechaNueva} onChange={e => setFechaNueva(e.target.value)} /></label><label>Categoría<select required value={categoriaNueva} onChange={e => setCategoriaNueva(e.target.value)}><option value="">Seleccionar categoría</option>{opciones.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label>{opciones.length === 0 && <p className="muted">Todavía no tenés categorías de este tipo. Las configuraremos en la siguiente etapa.</p>}<label>Descripción (opcional)<input value={descripcionNueva} onChange={e => setDescripcionNueva(e.target.value)} placeholder="Ej. Almuerzo, sueldo, fútbol…" /></label><button className="primary" disabled={busy || !opciones.length}>{busy ? "Guardando…" : "Guardar movimiento"}</button></form></section>}
-        {tab === "ajustes" && <section className="panel"><h2>Cuenta y respaldo</h2><p className="muted">Sesión: {session.user.email}</p><p>El historial permanece en Supabase. Las imágenes de comprobantes no se almacenan aquí.</p><button className="secondary" onClick={exportarCSV}>Exportar todos los movimientos a CSV</button><p className="muted small">Esta exportación incluye los movimientos consultados en esta sesión (hasta 3000). Antes de considerarla una copia histórica completa implementaremos exportación paginada y restauración.</p></section>}
+        {tab === "ajustes" && <div className="settingsStack"><GestionCategorias userId={session.user.id} categorias={categorias} onReload={cargar} onError={setError} onNotice={setNotice} /><section className="panel"><h2>Cuenta y respaldo</h2><p className="muted">Sesión: {session.user.email}</p><p>El historial permanece en Supabase. Las imágenes de comprobantes no se almacenan aquí.</p><button className="secondary" onClick={exportarCSV}>Exportar todos los movimientos a CSV</button><p className="muted small">Esta exportación incluye los movimientos consultados en esta sesión (hasta 3000). Antes de considerarla una copia histórica completa implementaremos exportación paginada y restauración.</p></section></div>}
       </main>
+      {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
       <nav className="bottomNav">{([["inicio","⌂","Inicio"],["movimientos","☷","Historial"],["agregar","＋","Agregar"],["ajustes","⚙","Ajustes"]] as const).map(([id,ico,label]) => <button key={id} className={tab === id ? "selected" : ""} onClick={() => setTab(id)}><span>{ico}</span>{label}</button>)}</nav>
     </div>
   );
