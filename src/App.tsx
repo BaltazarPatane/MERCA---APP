@@ -3,27 +3,17 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import EditarMovimiento from "./components/EditarMovimiento";
 import GestionCategorias from "./components/GestionCategorias";
+import MovimientosPanel from "./components/MovimientosPanel";
 import { montoParaBD } from "./types";
 import type { Categoria, Movimiento } from "./types";
 
 
 type Tab = "inicio" | "movimientos" | "agregar" | "ajustes";
+type Cuenta = { id: string; nombre: string };
 const money = (n: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
 const fechaHoy = () => new Date().toLocaleDateString("en-CA");
 const normalizarBusqueda = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").trim();
 const mesHoy = () => fechaHoy().slice(0, 7);
-const fechaLegible = (fecha: string) => {
-  const [a, m, d] = fecha.split("-");
-  return `${d}/${m}/${a}`;
-};
-const estadoLegible = (estado: string) => ({
-  confirmado: "Confirmado",
-  pendiente_revision: "Pendiente de revisión",
-  descartado: "Descartado",
-} as Record<string, string>)[estado] ?? estado;
-const descripcionLegible = (descripcion: string | null, tipo: string) =>
-  descripcion?.trim() === "Comprobante recibido por Atajos" ? "Atajos" :
-  (descripcion?.trim() || (tipo === "ingreso" ? "Ingreso" : "Gasto"));
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -40,6 +30,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("inicio");
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [periodo, setPeriodo] = useState("mes");
   const [mes, setMes] = useState(mesHoy());
   const [dia, setDia] = useState(fechaHoy());
@@ -76,19 +67,22 @@ export default function App() {
     if (!supabase || !session) return;
     setLoading(true);
     setError("");
-    const [mov, cat] = await Promise.all([
+    const [mov, cat, cta] = await Promise.all([
       supabase.from("movimientos").select("id,tipo,monto,moneda,fecha,hora,descripcion,destinatario,estado,categoria_id,cuenta_origen_id,cuenta_destino_id").order("fecha", { ascending: false }).limit(3000),
       supabase.from("categorias").select("id,nombre,tipo,activa,color").order("nombre"),
+      supabase.from("cuentas").select("id,nombre").order("nombre"),
     ]);
     if (mov.error || cat.error) setError(mov.error?.message || cat.error?.message || "Error desconocido");
     else {
       setMovimientos((mov.data || []) as Movimiento[]);
       setCategorias((cat.data || []) as Categoria[]);
+      // Si la consulta opcional de cuentas falla, no se bloquea el historial.
+      setCuentas(cta.error ? [] : (cta.data || []) as Cuenta[]);
     }
     setLoading(false);
   }
 
-  useEffect(() => { if (session) void cargar(); else { setMovimientos([]); setCategorias([]); } }, [session?.user.id]);
+  useEffect(() => { if (session) void cargar(); else { setMovimientos([]); setCategorias([]); setCuentas([]); } }, [session?.user.id]);
 
   const visibles = useMemo(() => movimientos.filter(m => {
     if (periodo === "mes" && !m.fecha.startsWith(mes)) return false;
@@ -283,12 +277,65 @@ export default function App() {
         <button className="logout" onClick={() => { if (supabase) void supabase.auth.signOut(); }}>Cerrar sesión</button>
       </aside>
       <main className="appMain">
-        <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1></div><button className="subtle" onClick={() => void cargar()} disabled={loading}>{loading ? "Cargando…" : "↻ Actualizar"}</button></header>
+        <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1>{tab === "movimientos" && <p className="mv-page-subtitle">Revisá y gestioná todos tus movimientos en un solo lugar.</p>}</div><button className="subtle" onClick={() => void cargar()} disabled={loading}>{loading ? "Cargando…" : "↻ Actualizar"}</button></header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status" onClick={() => setNotice("")}>{notice} ×</div>}
-        {(tab === "inicio" || tab === "movimientos") && <div className="filtersContainer"><section className="filters"><label>Período<select value={periodo} onChange={e => setPeriodo(e.target.value)}><option value="mes">Mes</option><option value="dia">Día</option><option value="rango">Rango de fechas</option><option value="todo">Todo el historial</option></select></label>{periodo === "mes" && <label>Mes<input type="month" value={mes} onChange={e => setMes(e.target.value)} /></label>}{periodo === "dia" && <label>Fecha<input type="date" value={dia} onChange={e => setDia(e.target.value)} /></label>}{periodo === "rango" && <><label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></label></>}{tab === "movimientos" && <label>Estado<select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}><option value="todos">Todos</option><option value="confirmado">Confirmados</option><option value="pendiente_revision">Pendientes</option><option value="descartado">Descartados</option></select></label>}{tab === "movimientos" && <label className="filterRecipient">Buscar destinatario<input type="search" value={busquedaDestinatario} onChange={e => setBusquedaDestinatario(e.target.value)} placeholder="Nombre o comercio..." autoComplete="off" /></label>}</section></div>}
+        {tab === "inicio" && (
+          <div className="filtersContainer">
+            <section className="filters">
+              <label>Período
+                <select value={periodo} onChange={e => setPeriodo(e.target.value)}>
+                  <option value="mes">Mes</option>
+                  <option value="dia">Día</option>
+                  <option value="rango">Rango de fechas</option>
+                  <option value="todo">Todo el historial</option>
+                </select>
+              </label>
+              {periodo === "mes" && <label>Mes<input type="month" value={mes} onChange={e => setMes(e.target.value)} /></label>}
+              {periodo === "dia" && <label>Fecha<input type="date" value={dia} onChange={e => setDia(e.target.value)} /></label>}
+              {periodo === "rango" && (
+                <>
+                  <label>Desde<input type="date" value={desde} onChange={e => setDesde(e.target.value)} /></label>
+                  <label>Hasta<input type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></label>
+                </>
+              )}
+            </section>
+          </div>
+        )}
         {tab === "inicio" && <><section className="stats"><article className="panel stat"><span>Ingresos confirmados</span><strong className="green">{money(ingresos)}</strong></article><article className="panel stat"><span>Gastos confirmados</span><strong>{money(gastos)}</strong></article><article className="panel stat"><span>Balance del período</span><strong className={ingresos - gastos >= 0 ? "green" : "red"}>{money(ingresos - gastos)}</strong></article></section><div className="split"><section className="panel chart"><h2>¿En qué gastaste?</h2>{porCategoria.length === 0 ? <p className="muted">Cuando confirmes tus primeros gastos, aparecerá la distribución por categoría.</p> : <><div className="donut" style={{background:`conic-gradient(${porCategoria.reduce((acc, [, valor], i) => { const start = porCategoria.slice(0, i).reduce((s, x) => s + x[1], 0) / gastos * 100; return acc + `${["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i % 5]} ${start}% ${(start + valor / gastos * 100)}%,`; }, "").slice(0,-1)})`}}><div>{money(gastos)}<small>Total gastos</small></div></div><div className="legend">{porCategoria.map(([nombre, valor], i) => <div key={nombre}><i style={{background:["#2dd4bf","#60a5fa","#fbbf24","#c084fc","#fb7185"][i%5]}} />{nombre}<b>{money(valor)}</b></div>)}</div></>}</section><section className="panel"><h2>Por revisar</h2><p className="muted">Los movimientos pendientes todavía no cuentan en el balance.</p><div className="bigNumber">{movimientos.filter(m => m.estado === "pendiente_revision").length}</div><button className="secondary" onClick={() => { setTab("movimientos"); setFiltroEstado("pendiente_revision"); setPeriodo("todo"); }}>Revisar movimientos →</button></section></div></>}
-        {tab === "movimientos" && <section className="panel"><div className="sectionTitle"><h2>Historial</h2><span>{visibles.length} movimientos</span></div>{visibles.length === 0 ? <p className="muted">No hay movimientos para el período seleccionado.</p> : <div className="transactionList">{visibles.map(m => <article className="transaction" key={m.id}><div><div className="transactionTitle">{categorias.find(c => c.id === m.categoria_id)?.nombre || "Sin categoría"} <span className={"pill " + m.estado}>{estadoLegible(m.estado)}</span></div>{m.destinatario && <p className="recipient">{m.destinatario}</p>}<p className="transactionDate">{fechaLegible(m.fecha)}{m.hora ? ` · ${m.hora.slice(0,5)}` : ""} · {descripcionLegible(m.descripcion, m.tipo)}</p>{m.estado === "pendiente_revision" && <div className="actions"><button disabled={busy} className="mini primary" onClick={() => void actualizarEstado(m.id, "confirmado")}>Confirmar</button><button disabled={busy} className="mini secondary" onClick={() => void actualizarEstado(m.id, "descartado")}>Descartar</button></div>}<button className="mini secondary editButton" disabled={busy} onClick={() => setEditando(m)}>Editar</button></div><strong className={m.tipo === "ingreso" ? "green" : ""}>{m.tipo === "ingreso" ? "+" : m.tipo === "gasto" ? "−" : ""}{money(Number(m.monto))}</strong></article>)}</div>}</section>}
+        {tab === "movimientos" && (
+          <MovimientosPanel
+            movimientos={visibles}
+            categorias={categorias}
+            cuentas={cuentas}
+            periodo={periodo}
+            mes={mes}
+            dia={dia}
+            desde={desde}
+            hasta={hasta}
+            filtroEstado={filtroEstado}
+            busquedaDestinatario={busquedaDestinatario}
+            busy={busy}
+            onPeriodo={setPeriodo}
+            onMes={setMes}
+            onDia={setDia}
+            onDesde={setDesde}
+            onHasta={setHasta}
+            onEstado={setFiltroEstado}
+            onBusqueda={setBusquedaDestinatario}
+            onLimpiar={() => {
+              setPeriodo("mes");
+              setMes(mesHoy());
+              setDia(fechaHoy());
+              setDesde(fechaHoy());
+              setHasta(fechaHoy());
+              setFiltroEstado("todos");
+              setBusquedaDestinatario("");
+            }}
+            onEditar={setEditando}
+            onCambiarEstado={(id, estado) => void actualizarEstado(id, estado)}
+          />
+        )}
         {tab === "agregar" && <section className="panel formPanel"><h2>Carga manual</h2><p className="muted">Ingresá gastos o ingresos que no tengan comprobante.</p><form onSubmit={agregar} className="form"><label>Tipo<select value={tipoNuevo} onChange={e => {setTipoNuevo(e.target.value as "gasto" | "ingreso");setCategoriaNueva("");}}><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></label><label>Importe en ARS<input type="text" inputMode="decimal" required placeholder="15000,50" value={montoNuevo} onChange={e => setMontoNuevo(e.target.value)} /></label><label>Fecha<input type="date" required value={fechaNueva} onChange={e => setFechaNueva(e.target.value)} /></label><label>Categoría<select required value={categoriaNueva} onChange={e => setCategoriaNueva(e.target.value)}><option value="">Seleccionar categoría</option>{opciones.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label>{opciones.length === 0 && <p className="muted">Todavía no tenés categorías de este tipo. Las configuraremos en la siguiente etapa.</p>}{tipoNuevo === "gasto" && <label>Destinatario o comercio (opcional)<input maxLength={120} value={destinatarioNuevo} onChange={e => setDestinatarioNuevo(e.target.value)} placeholder="Ej. Grido" /></label>}<label>Descripción (opcional)<input value={descripcionNueva} onChange={e => setDescripcionNueva(e.target.value)} placeholder="Ej. Almuerzo, sueldo, fútbol…" /></label><button className="primary" disabled={busy || !opciones.length}>{busy ? "Guardando…" : "Guardar movimiento"}</button></form></section>}
         {tab === "ajustes" && <div className="settingsStack"><GestionCategorias userId={session.user.id} categorias={categorias} onReload={cargar} onError={setError} onNotice={setNotice} /><section className="panel"><h2>Cuenta y respaldo</h2><p className="muted">Sesión: {session.user.email}</p><p>El historial permanece en Supabase. Las imágenes de comprobantes no se almacenan aquí.</p><button className="secondary" onClick={exportarCSV}>Exportar todos los movimientos a CSV</button><p className="muted small">Esta exportación incluye los movimientos consultados en esta sesión (hasta 3000). Antes de considerarla una copia histórica completa implementaremos exportación paginada y restauración.</p></section></div>}
       </main>

@@ -141,3 +141,400 @@ select option:disabled{color:#9caeaa}
 }
 .brandLogo{display:flex;align-items:center;gap:11px}
 .brandLogo img{width:34px;height:34px;display:block;object-fit:contain;flex-shrink:0;border-radius:8px}
+
+/* =============================================================
+   MERCA — Movimientos v2
+   Estilos aislados: Inicio, Agregar, Ajustes y diálogos conservan
+   su apariencia y comportamiento anteriores.
+   ============================================================= */
+.mv-page-subtitle{
+  margin:9px 0 0;
+  font-size:14px;
+  line-height:1.5;
+  font-weight:400;
+  color:#9db8b5;
+}
+.mv-screen{
+  min-width:0;
+  width:100%;
+  display:grid;
+  gap:24px;
+}
+.mv-filters,.mv-history{
+  min-width:0;
+  background:linear-gradient(135deg,#102b30 0%,#0d2429 75%);
+  border:1px solid #21494a;
+  border-radius:20px;
+  box-shadow:0 8px 30px #04141726, inset 0 1px #ffffff07;
+}
+.mv-filters{padding:22px 24px 24px}
+.mv-filters-header,.mv-filters-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.mv-filters-header{
+  justify-content:space-between;
+  flex-wrap:wrap;
+  margin-bottom:17px;
+  gap:10px;
+}
+.mv-filters-title{color:#52e8c6}
+.mv-filters-title h2{
+  margin:0;
+  color:#e9f9f4;
+  font-size:17px;
+  font-weight:750;
+}
+.mv-clear{
+  border:0;
+  color:#9bbab4;
+  background:transparent;
+  font-size:12px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 9px;
+  border-radius:9px;
+  transition:color .15s,background .15s;
+}
+.mv-clear:not(:disabled):hover{
+  color:#74efce;
+  background:#1d4142;
+}
+.mv-filter-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:16px;
+  min-width:0;
+}
+.mv-field{
+  display:grid;
+  gap:8px;
+  min-width:0;
+  max-width:100%;
+  margin:0;
+  color:#bfd6d2;
+  font-size:12px;
+  font-weight:700;
+}
+.mv-field>span:first-child{line-height:1.4}
+.mv-control{
+  height:49px;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid #315961;
+  border-radius:12px;
+  background:#082229;
+  padding:0 12px;
+  color:#b7ded5;
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.mv-control:hover{border-color:#397f78;background:#0d2c31}
+.mv-control:focus-within{
+  border-color:#46d9b4;
+  box-shadow:0 0 0 3px #2dd4ac26;
+}
+.mv-control svg{flex-shrink:0}
+.mv-control.mv-select{position:relative}
+.mv-control select,
+.mv-control input{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  min-inline-size:0;
+  height:100%;
+  background:transparent!important;
+  border:0!important;
+  outline:0!important;
+  border-radius:0;
+  color:#f3fcf8;
+  padding:0;
+  box-shadow:none!important;
+  font-size:13px;
+  font-weight:600;
+}
+.mv-control select{
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  background-image:none!important;
+  padding-right:18px;
+}
+.mv-control select option{background:#102a2f;color:#edfdf8}
+.mv-control .mv-chevron{
+  position:absolute;
+  right:12px;
+  pointer-events:none;
+  color:#56e4c2;
+}
+.mv-date-control input[type="date"],.mv-date-control input[type="month"]{
+  min-width:0;
+  min-inline-size:0;
+  font-family:inherit;
+  font-size:13px;
+  color-scheme:dark;
+}
+.mv-date-control input::-webkit-calendar-picker-indicator{
+  cursor:pointer;
+  opacity:.9;
+  padding:3px;
+}
+.mv-search{gap:10px}
+.mv-search input{font-weight:450}
+.mv-search input::placeholder{color:#739a99;opacity:1}
+.mv-search input::-webkit-search-cancel-button{cursor:pointer}
+.mv-history{
+  overflow:hidden;
+  padding:24px 26px 13px;
+}
+.mv-history-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:22px;
+}
+.mv-history-header h2{
+  margin:0;
+  color:#f5fffb;
+  font-size:21px;
+  font-weight:800;
+  letter-spacing:-.5px;
+}
+.mv-history-header>span{
+  color:#adc5c0;
+  font-size:13px;
+  font-weight:500;
+}
+.mv-column-head,.mv-row{
+  display:grid;
+  grid-template-columns:minmax(230px,2.15fr) minmax(110px,.86fr) minmax(124px,.9fr) minmax(134px,.95fr) minmax(155px,1.12fr);
+  gap:12px;
+  align-items:center;
+}
+.mv-column-head{
+  border-bottom:1px solid #244449;
+  padding:0 12px 15px;
+  color:#8caeaa;
+  font-size:12px;
+  font-weight:650;
+}
+.mv-column-head>span:last-child{text-align:right}
+.mv-row{
+  min-width:0;
+  border-bottom:1px solid #234247;
+  padding:21px 12px;
+  transition:background .15s;
+}
+.mv-row:last-child{border-bottom:0}
+.mv-row:hover{background:#153b3924}
+.mv-cell{min-width:0}
+.mv-movement{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  min-width:0;
+}
+.mv-category-icon{
+  flex:0 0 48px;
+  width:48px;
+  height:48px;
+  border:1px solid #ffffff0f;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+}
+.mv-icon-food{background:#43252c;color:#ff919a}
+.mv-icon-clothing{background:#362642;color:#d8a7f3}
+.mv-icon-health{background:#3b2540;color:#d7a3f5}
+.mv-icon-home{background:#213e61;color:#9cc8ff}
+.mv-icon-transport{background:#153f50;color:#70dfff}
+.mv-icon-sport{background:#48351b;color:#ffcd78}
+.mv-icon-income{background:#104d43;color:#76f3bb}
+.mv-icon-transfer{background:#273a54;color:#aacaff}
+.mv-icon-other{background:#183c3c;color:#7ce5d4}
+.mv-movement-info{min-width:0;display:flex;flex-direction:column;gap:5px}
+.mv-movement-category{color:#b2d0ca;font-size:12px;line-height:1.3}
+.mv-movement-info>strong{
+  color:#f5fcfa;
+  font-size:16px;
+  font-weight:750;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.mv-movement-meta{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex-wrap:wrap;
+  font-size:11px;
+  line-height:1.55;
+  color:#8faeaa;
+}
+.mv-movement-meta i{font-style:normal;color:#668b86}
+.mv-row-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.mv-action{
+  display:inline-flex;
+  gap:5px;
+  align-items:center;
+  justify-content:center;
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid #315b59;
+  border-radius:8px;
+  background:#17363a;
+  color:#e2f7ef;
+  font-size:11px;
+  font-weight:650;
+  transition:transform .14s,border-color .14s,background .14s;
+}
+.mv-action:not(:disabled):hover{
+  transform:translateY(-1px);
+  background:#22534d;
+  border-color:#3c9680;
+}
+.mv-action:focus-visible,.mv-clear:focus-visible{
+  outline:2px solid #5ce8c4;
+  outline-offset:3px;
+}
+.mv-approve{color:#7bf2c2;background:#123f36}
+.mv-reject{color:#ffb4b4;background:#3b252d;border-color:#64414a}
+.mv-category-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  padding:7px 10px;
+  border-radius:100px;
+  border:1px solid #235051;
+  background:#102e33;
+  color:#d4f1e9;
+  font-size:12px;
+  font-weight:600;
+  line-height:1.4;
+}
+.mv-category-badge svg{flex-shrink:0;color:#73e4cb}
+.mv-account{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  color:#e4f3f0;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.mv-account svg{color:#b4dcd5;flex:0 0 auto}
+.mv-status{
+  display:inline-flex;
+  gap:6px;
+  align-items:center;
+  justify-content:center;
+  padding:8px 10px;
+  max-width:100%;
+  border-radius:100px;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+  white-space:normal;
+  line-height:1.25;
+}
+.mv-status svg{flex-shrink:0}
+.mv-status-confirmado{background:#104b3d;color:#79f4bf;border:1px solid #156c51}
+.mv-status-pendiente_revision{background:#58421a;color:#ffe08a;border:1px solid #a27b27}
+.mv-status-descartado{background:#4b2e36;color:#ffc3c5;border:1px solid #74444c}
+.mv-amount-cell{text-align:right}
+.mv-amount{display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;text-align:right;font-weight:800;font-size:16px;white-space:nowrap}
+.mv-positive{color:#60ebae}
+.mv-negative{color:#ff788c}
+.mv-neutral{color:#eaf8f4}
+.mv-history-footer{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  color:#7faaa1;
+  font-size:10px;
+  padding:12px 0 2px;
+  line-height:1.5;
+}
+.mv-history-footer svg{flex-shrink:0}
+.mv-empty{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  gap:9px;
+  padding:42px 16px;
+  color:#93b4af;
+}
+.mv-empty>strong{color:#ebf9f4}
+.mv-empty p{margin:0 0 7px}
+.mv-mobile-label{display:none}
+@media(max-width:1260px){
+  .mv-column-head{display:none}
+  .mv-row{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:
+      "movement amount"
+      "movement status"
+      "category account";
+    align-items:start;
+    gap:12px;
+    padding:18px 8px;
+  }
+  .mv-movement{grid-area:movement}
+  .mv-category-cell{grid-area:category}
+  .mv-account{grid-area:account;justify-content:flex-end}
+  .mv-status-cell{grid-area:status;justify-self:end}
+  .mv-amount-cell{grid-area:amount}
+  .mv-mobile-label{display:inline;color:#87aaa5;font-size:10px;margin-right:7px}
+  .mv-status-cell .mv-mobile-label{display:none}
+}
+@media(max-width:1010px){
+  .mv-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .mv-filters{padding:17px 14px}
+  .mv-filter-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+  .mv-history{padding:20px 14px 12px;border-radius:17px}
+  .mv-history-header{margin-bottom:12px}
+  .mv-history-header h2{font-size:20px}
+  .mv-row{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:
+      "movement amount"
+      "category status"
+      "account account";
+    gap:13px 9px;
+  }
+  .mv-movement{gap:10px}
+  .mv-category-icon{width:40px;height:40px;flex-basis:40px}
+  .mv-movement-info>strong{font-size:15px}
+  .mv-amount{font-size:13px}
+  .mv-amount>svg{display:none}
+  .mv-category-cell{align-self:center}
+  .mv-category-cell .mv-mobile-label{display:none}
+  .mv-status-cell{align-self:center}
+  .mv-account{justify-content:flex-start;font-size:11px}
+  .mv-history-footer{font-size:10px}
+}
+@media(max-width:395px){
+  .mv-row{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"movement" "amount" "category" "account" "status";
+  }
+  .mv-amount-cell{text-align:left}
+  .mv-status-cell{justify-self:start}
+  .mv-status-cell .mv-mobile-label{display:inline}
+}
+@media(prefers-reduced-motion:reduce){
+  .mv-row,.mv-action,.mv-clear,.mv-control{transition:none}
+}
