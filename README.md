@@ -75,7 +75,9 @@ flowchart LR
     G --> J["PostgreSQL"]
     H --> J
     J --> K["Web MERCA"]
-    K --> L["Historial · Filtros · Gráficos"]
+    M["Carga manual · Ingreso / Gasto / Inversión"] --> K
+    K -->|"Operaciones bajo RLS"| J
+    K --> L["Historiales · Filtros · Balance · Gráficos"]
 ```
 
 ### Procesamiento y criterio de confiabilidad
@@ -211,7 +213,7 @@ flowchart TB
 | **Supabase Edge Functions** | Recepción HTTPS y procesamiento de comprobantes. |
 | **Atajos de iOS / OCR** | Captura y extracción de texto al compartir archivos. |
 | **Cloudflare Pages** | Alojamiento y publicación del frontend conectado a GitHub. |
-| **GitHub Actions** | Verificación automática de TypeScript y compilación. |
+| **GitHub Actions** | Pruebas del cálculo financiero (`npm test`), verificación de TypeScript y compilación (`npm run build`). |
 
 ### Modelo de datos
 
@@ -219,11 +221,13 @@ La información principal se distribuye en tres tablas:
 
 | Tabla | Datos relevantes |
 | --- | --- |
-| `categorias` | Usuario, nombre, tipo (`gasto`/`ingreso`), color y estado activo. |
+| `categorias` | Usuario, nombre, tipo (`gasto`, `ingreso`, `inversion`), color y estado activo. |
 | `cuentas` | Usuario, nombre, tipo de cuenta, moneda y estado. |
-| `movimientos` | Usuario, tipo, importe, fecha, hora, categoría, cuentas asociadas, destinatario, descripción, origen del registro, referencia externa y estado. |
+| `movimientos` | Usuario, tipo (`gasto`, `ingreso`, `inversion` y transferencias existentes), importe, fecha, hora, categoría, cuentas asociadas, destinatario, descripción, origen, referencia y estado. |
 
-Los movimientos admiten los estados `confirmado`, `pendiente_revision` y `descartado`. La base de datos utiliza claves foráneas y políticas RLS para evitar que un usuario consulte o modifique registros ajenos.
+Los movimientos admiten los estados `confirmado`, `pendiente_revision` y `descartado`. Las categorías de inversiones pertenecen a un tipo distinto y no se mezclan con las de ingresos o gastos. La base de datos utiliza claves foráneas y políticas RLS para evitar que un usuario consulte o modifique registros ajenos.
+
+La incorporación de inversiones se realizó mediante una [migración SQL transaccional](supabase/migrations/20261020_inversiones.sql) que amplía los valores permitidos de `tipo` en las tablas `categorias` y `movimientos`, sin borrar registros anteriores. La migración **debe ejecutarse por separado en cada proyecto Supabase**: publicar el frontend no la aplica automáticamente.
 
 La información se guarda de forma estructurada; **no se conservan los PDF, las imágenes ni el texto OCR completo** como historial de comprobantes.
 
@@ -257,16 +261,25 @@ Iniciar el entorno local:
 npm run dev
 ```
 
-Para compilar y previsualizar:
+Para ejecutar las pruebas de la fórmula de balance, compilar y previsualizar:
 
 ```bash
+npm test
 npm run build
 npm run preview
 ```
 
-> El repositorio incluye la aplicación web y una migración para `destinatario`, pero **no incluye una instalación automatizada del esquema completo de PostgreSQL ni el despliegue completo de la Edge Function**. Para replicar toda la solución es necesario configurar esos componentes en un proyecto Supabase propio.
+Las pruebas comprueban que **inversiones y gastos no se contabilicen dos veces**, que pendientes y descartados no alteren el balance y que las transferencias entre cuentas propias no afecten el disponible agregado.
 
-### 2. Publicar en Cloudflare Pages
+> El repositorio incluye la aplicación web y **migraciones para `destinatario` e `inversiones`**, pero **no incluye una instalación automatizada del esquema completo de PostgreSQL ni el despliegue completo de la Edge Function**. Para replicar toda la solución es necesario configurar esos componentes en un proyecto Supabase propio.
+
+### 2. Activar Inversiones en Supabase
+
+Antes de registrar aportes en una instalación existente, abrir **Supabase → SQL Editor**, copiar y ejecutar íntegramente [la migración `20261020_inversiones.sql`](supabase/migrations/20261020_inversiones.sql) y verificar que se hayan habilitado los tipos de inversión en `categorias` y `movimientos`.
+
+La migración conserva registros anteriores, claves foráneas y políticas RLS; si encuentra restricciones no previstas se revierte. **Si todavía no se ejecutó, el formulario web de inversiones puede aparecer, pero Supabase rechazará su creación.** Consultar el [procedimiento detallado](docs/inversiones.md).
+
+### 3. Publicar en Cloudflare Pages
 
 La configuración del frontend es:
 
@@ -281,7 +294,7 @@ La configuración del frontend es:
 
 Los commits integrados a `main` pueden desplegarse automáticamente a través de la integración de GitHub con Cloudflare Pages. La configuración del backend de Supabase es independiente.
 
-### 3. Configurar el atajo en el iPhone
+### 4. Configurar el atajo en el iPhone
 
 El atajo de uso personal recibe contenido desde el menú **Compartir** de iOS, obtiene texto del PDF o imagen, permite elegir categoría y envía:
 
@@ -321,9 +334,9 @@ El endpoint de ingesta desde Atajos está configurado para un **usuario propieta
 | **Reconocimiento** | Tratamiento de formatos reales de Mercado Pago, fechas en español, centavos extraídos de PDF e identificación de destinatarios. |
 | **Web inicial** | React, autenticación, filtros, historial, resumen, cargas manuales y CSV. |
 | **Gestión** | Edición de movimientos, altas y cambios en categorías, revisión de pendientes y asociación opcional de cuentas. |
-| **Inversiones** | Tipo de movimiento y categorías propios, historial filtrable y cálculo independiente del balance disponible. |
+| **Inversiones** | Tercer tipo manual, categorías propias, historial con filtros y resumen de capital aportado. Migración SQL de integridad y cálculo del balance disponible. |
 | **Publicación** | Integración GitHub + Cloudflare Pages, variables de entorno públicas y compilaciones automáticas. |
-| **Diseño v2** | Rediseño responsive de Inicio, Movimientos, Nuevo movimiento y Ajustes; identidad gráfica e ícono para iPhone. |
+| **Diseño v2** | Rediseño responsive de las cinco pestañas (Inicio, Movimientos, Inversiones, Agregar y Ajustes), identidad gráfica e ícono de acceso directo para iPhone. |
 
 ## Estructura del repositorio
 
@@ -342,16 +355,22 @@ MERCA-APP/
 │   │   ├── AjustesPanel.tsx
 │   │   ├── GestionCategorias.tsx
 │   │   └── EditarMovimiento.tsx
-│   ├── lib/supabase.ts
+│   ├── lib/
+│   │   ├── supabase.ts
+│   │   └── finanzas.ts             # Balance sin doble contabilización
 │   ├── App.tsx
 │   ├── main.tsx
 │   ├── styles.css
 │   └── types.ts
-├── supabase/migrations/          # Migración del destinatario
+├── supabase/migrations/
+│   ├── 20261019_destinatario_movimientos.sql
+│   └── 20261020_inversiones.sql
+├── tests/finanzas.test.mjs       # Pruebas de cálculos financieros
 ├── docs/
 │   ├── comprobantes.md
-│   └── img/                      # Imágenes ilustrativas del proyecto
-├── .github/workflows/            # Verificación de compilación
+│   ├── inversiones.md
+│   └── img/                      # Portada y seis vistas ilustrativas
+├── .github/workflows/            # Test y build en GitHub Actions
 ├── .env.example
 ├── index.html
 ├── package.json
@@ -366,8 +385,10 @@ La versión actual cubre el flujo de **gastos enviados desde iPhone** y la admin
 - Si el importe, fecha o estructura son ambiguos, el sistema puede requerir revisión o rechazar la solicitud.
 - La exportación CSV utiliza los movimientos cargados en la sesión; la consulta solicita hasta **3000 registros** y el límite efectivo puede depender de la configuración de Supabase. **No equivale a un sistema de backup integral**.
 - No hay restauración de respaldos ni paginación histórica completa.
+- Inversiones registra **aportes**, no valor de mercado, ganancias, dividendos, rentabilidad o rescates automáticos.
+- El balance disponible es un resultado por período, **no un saldo bancario conciliado ni el patrimonio total**.
 - Las cuentas pueden mostrarse y asociarse a movimientos manuales; todavía no existe administración completa de cuentas desde la web.
-- Para activar **Inversiones** en una base de datos existente es necesario ejecutar [la migración SQL](supabase/migrations/20261020_inversiones.sql), que amplía los tipos permitidos sin borrar registros.
+- Para activar **Inversiones** en una base de datos existente es necesario ejecutar [la migración SQL](supabase/migrations/20261020_inversiones.sql), que amplía los tipos permitidos sin borrar registros. **No se ejecuta automáticamente desde GitHub ni Cloudflare.**
 - El frontend se despliega desde GitHub, pero la ingesta de comprobantes requiere desplegar y configurar la Edge Function de manera independiente.
 
 ## Autor
