@@ -8,7 +8,7 @@ type Props={userId:string;categorias:Categoria[];onReload:()=>Promise<void>;onEr
 
 export default function GestionCategorias({userId,categorias,onReload,onError,onNotice}:Props){
   const [nombre,setNombre]=useState("");
-  const [tipo,setTipo]=useState<"gasto"|"ingreso">("gasto");
+  const [tipo,setTipo]=useState<"gasto"|"ingreso"|"inversion">("gasto");
   const [busyId,setBusyId]=useState<string|null>(null);
   const [nombreEditado,setNombreEditado]=useState<Record<string,string>>({});
   const activas=categorias.filter(c=>c.activa).length;
@@ -42,11 +42,11 @@ export default function GestionCategorias({userId,categorias,onReload,onError,on
   return <section className="settingsV2-panel" aria-labelledby="ajustes-categorias">
     <header className="settingsV2-panel-header">
       <span className="settingsV2-panel-icon"><Tag size={21}/></span>
-      <div><h2 id="ajustes-categorias">Categorías</h2><p>Organizá tus gastos e ingresos</p></div>
+      <div><h2 id="ajustes-categorias">Categorías</h2><p>Organizá gastos, ingresos e inversiones</p></div>
       <span className="settingsV2-count">{activas} activas</span>
     </header>
     <form className="settingsV2-create" onSubmit={crear}>
-      <label><span>Tipo</span><select value={tipo} onChange={e=>setTipo(e.target.value as "gasto"|"ingreso")} disabled={!!busyId}><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></label>
+      <label><span>Tipo</span><select value={tipo} onChange={e=>setTipo(e.target.value as "gasto"|"ingreso"|"inversion")} disabled={!!busyId}><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option><option value="inversion">Inversión</option></select></label>
       <label><span>Nombre de categoría</span><input required maxLength={60} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej. Sueldo, Salud, Básquet" disabled={!!busyId}/></label>
       <button type="submit" className="settingsV2-create-button" disabled={!!busyId}><CirclePlus size={18}/> Agregar</button>
     </form>
@@ -55,10 +55,10 @@ export default function GestionCategorias({userId,categorias,onReload,onError,on
         const editado=nombreEditado[c.id]??c.nombre;
         const cambio=editado!==c.nombre;
         return <div className="settingsV2-category-row" key={c.id}>
-          <span className={"settingsV2-category-icon "+(c.tipo==="ingreso"?"income":"")} style={{color:["#36d4b0","#54c6f0","#b391ea","#f5b94d","#f38ba4","#90c6c2"][i%6]}}><FolderClosed size={18}/></span>
+          <span className={"settingsV2-category-icon "+(c.tipo==="ingreso"?"income":c.tipo==="inversion"?"investment":"")} style={{color:["#36d4b0","#54c6f0","#b391ea","#f5b94d","#f38ba4","#90c6c2"][i%6]}}><FolderClosed size={18}/></span>
           <div className="settingsV2-category-info">
             <input aria-label={"Nombre de categoría "+c.nombre} value={editado} maxLength={60} onChange={e=>setNombreEditado(s=>({...s,[c.id]:e.target.value}))} disabled={!!busyId}/>
-            <div className="settingsV2-category-meta"><span>{c.tipo==="gasto"?"Gastos":"Ingresos"}</span><span className={"settingsV2-category-state "+(c.activa?"active":"")}>{c.activa?"Activa":"Inactiva"}</span></div>
+            <div className="settingsV2-category-meta"><span>{c.tipo==="gasto"?"Gastos":c.tipo==="ingreso"?"Ingresos":"Inversiones"}</span><span className={"settingsV2-category-state "+(c.activa?"active":"")}>{c.activa?"Activa":"Inactiva"}</span></div>
           </div>
           <div className="settingsV2-category-actions">
             {cambio&&<button type="button" title="Guardar nuevo nombre" aria-label={"Guardar nombre de "+c.nombre} className="settingsV2-icon-button save" disabled={!!busyId} onClick={()=>void actualizar(c.id,{nombre:editado})}><Check size={18}/></button>}
