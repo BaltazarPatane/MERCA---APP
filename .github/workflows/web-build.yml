@@ -19,5 +19,7 @@ jobs:
           node-version: '22'
       - name: Instalar dependencias
         run: npm install --no-audit --no-fund
+      - name: Probar cálculos financieros
+        run: npm test
       - name: Verificar TypeScript y compilar
         run: npm run build
