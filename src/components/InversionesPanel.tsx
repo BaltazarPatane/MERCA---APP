@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, CalendarDays, Check, CirclePlus, Pencil, PieChart, Search, TrendingUp, Wallet, X } from "lucide-react";
 import type { Categoria, Movimiento } from "../types";
+import { resumenFinanciero } from "../lib/finanzas";
 
 type Cuenta={id:string;nombre:string};
 type Props={movimientos:Movimiento[];categorias:Categoria[];cuentas:Cuenta[];busy:boolean;onAgregar:()=>void;onEditar:(m:Movimiento)=>void;onCambiarEstado:(id:string,estado:"confirmado"|"descartado")=>void};
@@ -29,8 +30,8 @@ export default function InversionesPanel({movimientos,categorias,cuentas,busy,on
     return true;
   }),[inversiones,periodo,mes,desde,hasta,categoriaId,estado,buscar]);
   const confirmadas=filtradas.filter(m=>m.estado==="confirmado");
-  const capital=confirmadas.reduce((s,m)=>s+Number(m.monto),0);
-  const acumulado=inversiones.filter(m=>m.estado==="confirmado").reduce((s,m)=>s+Number(m.monto),0);
+  const capital=resumenFinanciero(filtradas).inversiones;
+  const acumulado=resumenFinanciero(inversiones).inversiones;
   const pendientes=filtradas.filter(m=>m.estado==="pendiente_revision").length;
   const mapaCategorias=new Map(categorias.map(c=>[c.id,c.nombre]));
   const mapaCuentas=new Map(cuentas.map(c=>[c.id,c.nombre]));
