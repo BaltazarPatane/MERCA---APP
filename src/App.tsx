@@ -169,6 +169,8 @@ export default function App() {
     categoria_id: string | null;
     descripcion: string | null;
     destinatario: string | null;
+    cuenta_origen_id?: string | null;
+    cuenta_destino_id?: string | null;
     estado: "pendiente_revision" | "confirmado" | "descartado";
   }) {
     if (!supabase || !editando) return;
@@ -199,7 +201,7 @@ export default function App() {
       origen_registro: "manual", estado: "confirmado",
     });
     setBusy(false);
-    if (err) setError(err.message);
+    if (err) setError(tipoNuevo === "inversion" && err.code === "23514" ? "Para habilitar inversiones, ejecutá primero la migración SQL de Inversiones en Supabase." : err.message);
     else { setMontoNuevo(""); setDescripcionNueva(""); setDestinatarioNuevo(""); setCategoriaNueva(""); setCuentaNueva(""); setNotice(tipoNuevo==="inversion"?"Inversión registrada correctamente":"Movimiento agregado correctamente"); setTab(tipoNuevo==="inversion"?"inversiones":"movimientos"); await cargar(); }
   }
 
@@ -344,7 +346,7 @@ export default function App() {
           onExportar={exportarCSV}
         />}
       </main>
-      {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
+      {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} cuentas={cuentas} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
       <nav className="bottomNav" aria-label="Navegación móvil"><button className={tab==="inicio"?"selected":""} onClick={()=>setTab("inicio")}><Home size={22}/>Inicio</button><button className={tab==="movimientos"?"selected":""} onClick={()=>setTab("movimientos")}><ListFilter size={22}/>Historial</button><button className={tab==="inversiones"?"selected":""} onClick={()=>setTab("inversiones")}><TrendingUp size={22}/>Invertir</button><button className={tab==="agregar"?"selected":""} onClick={()=>setTab("agregar")}><CirclePlus size={22}/>Agregar</button><button className={tab==="ajustes"?"selected":""} onClick={()=>setTab("ajustes")}><Settings2 size={22}/>Ajustes</button></nav>
     </div>
   );
