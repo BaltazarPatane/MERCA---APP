@@ -67,4 +67,4 @@ SELECT conrelid::regclass AS tabla, conname AS restriccion,
 FROM pg_constraint
 WHERE conrelid IN ('public.categorias'::regclass, 'public.movimientos'::regclass)
   AND conname IN ('merca_categorias_tipo_valido','merca_movimientos_tipo_valido')
-ORDER BY tabla::text;
+ORDER BY conrelid::regclass::text;
