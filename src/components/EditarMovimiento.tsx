@@ -12,23 +12,27 @@ export type MovimientoEditado = {
   descripcion: string | null;
   destinatario: string | null;
   estado: "pendiente_revision" | "confirmado" | "descartado";
+  cuenta_origen_id?: string | null;
+  cuenta_destino_id?: string | null;
 };
 
 type Props = {
   movimiento: Movimiento;
   categorias: Categoria[];
+  cuentas: {id:string; nombre:string; activa?:boolean}[];
   busy: boolean;
   onSave: (data: MovimientoEditado) => Promise<void>;
   onClose: () => void;
 };
 
-export default function EditarMovimiento({ movimiento, categorias, busy, onSave, onClose }: Props) {
+export default function EditarMovimiento({ movimiento, categorias, cuentas, busy, onSave, onClose }: Props) {
   const [tipo, setTipo] = useState(movimiento.tipo);
   const [monto, setMonto] = useState(String(movimiento.monto).replace(".", ","));
   const [fecha, setFecha] = useState(movimiento.fecha);
   const [hora, setHora] = useState(movimiento.hora?.slice(0, 5) ?? "");
   const [categoriaId, setCategoriaId] = useState(movimiento.categoria_id ?? "");
   const [descripcion, setDescripcion] = useState(movimiento.descripcion ?? "");
+  const [cuentaId, setCuentaId] = useState(movimiento.tipo === "ingreso" ? (movimiento.cuenta_destino_id ?? "") : (movimiento.cuenta_origen_id ?? ""));
   const [destinatario, setDestinatario] = useState(movimiento.destinatario ?? "");
   const [estado, setEstado] = useState(movimiento.estado);
   const [errorLocal, setErrorLocal] = useState("");
@@ -64,6 +68,10 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
       categoria_id: tipo === "transferencia" ? null : categoriaId,
       descripcion: descripcion.trim() || null,
       destinatario: tipo === "gasto" || tipo === "inversion" ? (destinatario.trim() || null) : null,
+      ...(tipo === "transferencia" ? {} : {
+        cuenta_origen_id: tipo === "ingreso" ? null : (cuentaId || null),
+        cuenta_destino_id: tipo === "ingreso" ? (cuentaId || null) : null,
+      }),
       estado,
     });
   }
@@ -81,6 +89,8 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
               const siguiente = e.target.value as Movimiento["tipo"];
               setTipo(siguiente);
               setCategoriaId(siguiente === movimiento.tipo ? movimiento.categoria_id ?? "" : "");
+              // Gastos e inversiones utilizan cuenta de origen; ingresos, cuenta destino.
+              if (siguiente !== tipo && (siguiente === "ingreso" || tipo === "ingreso")) setCuentaId("");
             }}>
               <option value="gasto">Gasto</option>
               <option value="ingreso">Ingreso</option><option value="inversion">Inversión</option>
@@ -107,6 +117,12 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
           </label>}
           {(tipo === "gasto" || tipo === "inversion") && <label>{tipo === "inversion" ? "Activo, instrumento o plataforma (opcional)" : "Destinatario o comercio (opcional)"}
             <input maxLength={120} value={destinatario} onChange={e => setDestinatario(e.target.value)} placeholder="Ej. Grido" />
+          </label>}
+          {tipo !== "transferencia" && cuentas.length > 0 && <label>{tipo === "ingreso" ? "Cuenta de destino" : "Cuenta de origen"} (opcional)
+            <select value={cuentaId} onChange={e => setCuentaId(e.target.value)}>
+              <option value="">Sin asignar</option>
+              {cuentas.filter(c => c.activa !== false || c.id === cuentaId).map(c => <option key={c.id} value={c.id}>{c.nombre}{c.activa === false ? " (inactiva)" : ""}</option>)}
+            </select>
           </label>}
           <label>Descripción
             <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="¿Qué fue este movimiento?" />
