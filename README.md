@@ -40,6 +40,7 @@ La solución utiliza servicios con opciones gratuitas, evita depender de WhatsAp
 | **Reconocimiento de comprobantes** | Extracción y normalización de importes, fechas, horas, referencias de operación y destinatarios cuando están presentes. |
 | **Gastos automáticos** | Los comprobantes compartidos se clasifican como **gastos**, independientemente del titular de origen o destino. |
 | **Ingresos manuales** | Se registran exclusivamente desde la aplicación web. |
+| **Inversiones manuales** | Aportes con categorías independientes, historial exclusivo y descuento del balance disponible sin mezclarse con los gastos. |
 | **Validación y duplicados** | Comprobación de datos, referencias de operación y huellas de texto para evitar altas repetidas. |
 | **Revisión excepcional** | Operaciones con datos insuficientes o formatos no confiables requieren intervención desde la web. |
 | **Inicio** | Resumen de ingresos, gastos y balance; gráfico por categorías; evolución mensual y últimos movimientos. |
@@ -96,13 +97,13 @@ El sistema distingue tres resultados visibles desde Atajos:
 
 ## Interfaz y funcionalidades
 
-La aplicación dispone de **cuatro pestañas**. El estilo visual se construyó con una paleta oscura azulada, acentos turquesa, componentes responsive e íconos de **Lucide**.
+La aplicación dispone de **cinco pestañas**. El estilo visual se construyó con una paleta oscura azulada, acentos turquesa, componentes responsive e íconos de **Lucide**.
 
 ### Inicio — Resumen financiero
 
 ![Inicio de MERCA — demostración con datos ficticios](docs/img/ejemplo-inicio.svg)
 
-La pantalla principal concentra la información del período seleccionado: **ingresos, gastos y balance**, distribución porcentual de gastos por categoría, evolución de los últimos seis meses y movimientos recientes. Los gráficos utilizan movimientos reales consultados desde la base de datos; los pendientes y descartados no se contabilizan como gastos o ingresos confirmados.
+La pantalla principal concentra la información del período seleccionado: **ingresos, gastos, inversiones y balance disponible**, distribución porcentual de gastos por categoría, evolución de los últimos seis meses y movimientos recientes. Los gráficos utilizan movimientos reales consultados desde la base de datos; los pendientes y descartados no se contabilizan como gastos o ingresos confirmados.
 
 Los filtros permiten consultar un **mes, día, rango de fechas o todo el historial**. También es posible acceder desde Inicio a los movimientos pendientes.
 
@@ -120,11 +121,17 @@ El historial presenta cada operación con su **categoría, destinatario, fecha, 
 
 La columna **Cuenta** muestra la cuenta registrada cuando está vinculada al movimiento. En caso contrario, se indica **«No asignada»**; el sistema no presupone qué cuenta se utilizó.
 
+### Inversiones — Aportes y seguimiento
+
+MERCA permite crear **categorías de inversión independientes** (por ejemplo, Fondo común, Acciones o Plazo fijo) y registrar aportes manuales con importe, fecha, cuenta de origen opcional, activo/plataforma y descripción. La pestaña **Inversiones** ofrece historial, filtros por período, categoría y estado, edición y distribución de aportes.
+
+Los importes invertidos **reducen el balance disponible**, pero no se cuentan como gastos de consumo ni se incluyen en el gráfico de gastos. La sección registra dinero aportado; **no calcula rentabilidad, cotizaciones ni valor de mercado de activos**. Consultá [implementación y migración de inversiones](docs/inversiones.md).
+
 ### Nuevo movimiento — Carga manual
 
 ![Nuevo movimiento en MERCA — demostración con datos ficticios](docs/img/ejemplo-nuevo-movimiento.svg)
 
-El formulario permite registrar **gastos e ingresos** con importe en pesos argentinos, fecha, categoría y descripción. Los gastos admiten un destinatario o comercio. Si el usuario tiene cuentas configuradas, puede asociar opcionalmente la cuenta de origen o destino.
+El formulario permite registrar **gastos, ingresos e inversiones** con importe en pesos argentinos, fecha, categoría y descripción. Los gastos admiten un destinatario o comercio. Si el usuario tiene cuentas configuradas, puede asociar opcionalmente la cuenta de origen o destino.
 
 Se incluyen validación de importes, categorías activas según el tipo de movimiento y un botón para limpiar el formulario. Las operaciones manuales se crean **confirmadas**.
 
@@ -132,7 +139,7 @@ Se incluyen validación de importes, categorías activas según el tipo de movim
 
 ![Ajustes de MERCA — demostración con datos ficticios](docs/img/ejemplo-ajustes.svg)
 
-Las categorías se pueden **crear, renombrar, activar y desactivar** sin eliminar los movimientos históricos que las utilizan. También se muestran las cuentas existentes en modo consulta, la identidad de la sesión y la exportación de movimientos a **CSV**, compatible con herramientas como Excel.
+Las categorías de **gastos, ingresos e inversiones** se pueden **crear, renombrar, activar y desactivar** sin eliminar los movimientos históricos que las utilizan. También se muestran las cuentas existentes en modo consulta, la identidad de la sesión y la exportación de movimientos a **CSV**, compatible con herramientas como Excel.
 
 La creación o administración de cuentas bancarias desde esta pantalla **no está implementada**; su visualización y la selección opcional en formularios sí lo están.
 
@@ -280,6 +287,7 @@ El endpoint de ingesta desde Atajos está configurado para un **usuario propieta
 | **Reconocimiento** | Tratamiento de formatos reales de Mercado Pago, fechas en español, centavos extraídos de PDF e identificación de destinatarios. |
 | **Web inicial** | React, autenticación, filtros, historial, resumen, cargas manuales y CSV. |
 | **Gestión** | Edición de movimientos, altas y cambios en categorías, revisión de pendientes y asociación opcional de cuentas. |
+| **Inversiones** | Tipo de movimiento y categorías propios, historial filtrable y cálculo independiente del balance disponible. |
 | **Publicación** | Integración GitHub + Cloudflare Pages, variables de entorno públicas y compilaciones automáticas. |
 | **Diseño v2** | Rediseño responsive de Inicio, Movimientos, Nuevo movimiento y Ajustes; identidad gráfica e ícono para iPhone. |
 
@@ -295,6 +303,7 @@ MERCA-APP/
 │   ├── components/
 │   │   ├── InicioPanel.tsx
 │   │   ├── MovimientosPanel.tsx
+│   │   ├── InversionesPanel.tsx
 │   │   ├── NuevoMovimientoPanel.tsx
 │   │   ├── AjustesPanel.tsx
 │   │   ├── GestionCategorias.tsx
@@ -324,6 +333,7 @@ La versión actual cubre el flujo de **gastos enviados desde iPhone** y la admin
 - La exportación CSV utiliza los movimientos cargados en la sesión; la consulta solicita hasta **3000 registros** y el límite efectivo puede depender de la configuración de Supabase. **No equivale a un sistema de backup integral**.
 - No hay restauración de respaldos ni paginación histórica completa.
 - Las cuentas pueden mostrarse y asociarse a movimientos manuales; todavía no existe administración completa de cuentas desde la web.
+- Para activar **Inversiones** en una base de datos existente es necesario ejecutar [la migración SQL](supabase/migrations/20261020_inversiones.sql), que amplía los tipos permitidos sin borrar registros.
 - El frontend se despliega desde GitHub, pero la ingesta de comprobantes requiere desplegar y configurar la Edge Function de manera independiente.
 
 ## Autor

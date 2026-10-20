@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Home, ListFilter, CirclePlus, Settings2, LogOut, RefreshCcw } from "lucide-react";
+import { Home, ListFilter, TrendingUp, CirclePlus, Settings2, LogOut, RefreshCcw } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import EditarMovimiento from "./components/EditarMovimiento";
@@ -7,11 +7,12 @@ import MovimientosPanel from "./components/MovimientosPanel";
 import InicioPanel from "./components/InicioPanel";
 import NuevoMovimientoPanel from "./components/NuevoMovimientoPanel";
 import AjustesPanel from "./components/AjustesPanel";
+import InversionesPanel from "./components/InversionesPanel";
 import { montoParaBD } from "./types";
 import type { Categoria, Movimiento } from "./types";
 
 
-type Tab = "inicio" | "movimientos" | "agregar" | "ajustes";
+type Tab = "inicio" | "movimientos" | "inversiones" | "agregar" | "ajustes";
 type Cuenta = { id: string; nombre: string; tipo?: string; activa?: boolean };
 const fechaHoy = () => new Date().toLocaleDateString("en-CA");
 const normalizarBusqueda = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").trim();
@@ -42,7 +43,7 @@ export default function App() {
   const [busquedaDestinatario, setBusquedaDestinatario] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tipoNuevo, setTipoNuevo] = useState<"gasto" | "ingreso">("gasto");
+  const [tipoNuevo, setTipoNuevo] = useState<"gasto" | "ingreso" | "inversion">("gasto");
   const [montoNuevo, setMontoNuevo] = useState("");
   const [fechaNueva, setFechaNueva] = useState(fechaHoy());
   const [categoriaNueva, setCategoriaNueva] = useState("");
@@ -88,6 +89,7 @@ export default function App() {
   useEffect(() => { if (session) void cargar(); else { setMovimientos([]); setCategorias([]); setCuentas([]); } }, [session?.user.id]);
 
   const visibles = useMemo(() => movimientos.filter(m => {
+    if (m.tipo === "inversion") return false; // Historial separado para inversiones
     if (periodo === "mes" && !m.fecha.startsWith(mes)) return false;
     if (periodo === "dia" && m.fecha !== dia) return false;
     if (periodo === "rango" && (m.fecha < desde || m.fecha > hasta)) return false;
@@ -160,13 +162,15 @@ export default function App() {
   }
 
   async function guardarEdicion(data: {
-    tipo: "gasto" | "ingreso" | "transferencia";
+    tipo: "gasto" | "ingreso" | "transferencia" | "inversion";
     monto: string;
     fecha: string;
     hora: string | null;
     categoria_id: string | null;
     descripcion: string | null;
     destinatario: string | null;
+    cuenta_origen_id?: string | null;
+    cuenta_destino_id?: string | null;
     estado: "pendiente_revision" | "confirmado" | "descartado";
   }) {
     if (!supabase || !editando) return;
@@ -184,21 +188,21 @@ export default function App() {
     e.preventDefault();
     if (!supabase || !session) return;
     const importe = montoParaBD(montoNuevo);
-    if (!importe || !fechaNueva || !categoriaNueva) { setError("Revisá el importe, la fecha y la categoría."); return; }
+    if (!importe || !fechaNueva || !categoriaNueva || !categorias.some(c=>c.id===categoriaNueva && c.tipo===tipoNuevo && c.activa)) { setError("Revisá el importe, la fecha y seleccioná una categoría activa del tipo correspondiente."); return; }
     setBusy(true); setError("");
     const { error: err } = await supabase.from("movimientos").insert({
       user_id: session.user.id,
       tipo: tipoNuevo, monto: importe, moneda: "ARS",
       fecha: fechaNueva, categoria_id: categoriaNueva,
       descripcion: descripcionNueva.trim() || null,
-      cuenta_origen_id: tipoNuevo === "gasto" ? (cuentaNueva || null) : null,
+      cuenta_origen_id: tipoNuevo !== "ingreso" ? (cuentaNueva || null) : null,
       cuenta_destino_id: tipoNuevo === "ingreso" ? (cuentaNueva || null) : null,
-      destinatario: tipoNuevo === "gasto" ? (destinatarioNuevo.trim() || null) : null,
+      destinatario: tipoNuevo !== "ingreso" ? (destinatarioNuevo.trim() || null) : null,
       origen_registro: "manual", estado: "confirmado",
     });
     setBusy(false);
-    if (err) setError(err.message);
-    else { setMontoNuevo(""); setDescripcionNueva(""); setDestinatarioNuevo(""); setCategoriaNueva(""); setCuentaNueva(""); setNotice("Movimiento agregado correctamente"); setTab("movimientos"); await cargar(); }
+    if (err) setError(tipoNuevo === "inversion" && err.code === "23514" ? "Para habilitar inversiones, ejecutá primero la migración SQL de Inversiones en Supabase." : err.message);
+    else { setMontoNuevo(""); setDescripcionNueva(""); setDestinatarioNuevo(""); setCategoriaNueva(""); setCuentaNueva(""); setNotice(tipoNuevo==="inversion"?"Inversión registrada correctamente":"Movimiento agregado correctamente"); setTab(tipoNuevo==="inversion"?"inversiones":"movimientos"); await cargar(); }
   }
 
   function exportarCSV() {
@@ -267,13 +271,14 @@ export default function App() {
         <nav aria-label="Menú principal">
           <button className={tab === "inicio" ? "nav active" : "nav"} onClick={() => { setTab("inicio"); setError(""); }}><Home size={19}/> <span>Inicio</span></button>
           <button className={tab === "movimientos" ? "nav active" : "nav"} onClick={() => { setTab("movimientos"); setError(""); }}><ListFilter size={19}/> <span>Movimientos</span></button>
+          <button className={tab === "inversiones" ? "nav active" : "nav"} onClick={() => { setTab("inversiones"); setError(""); }}><TrendingUp size={19}/> <span>Inversiones</span></button>
           <button className={tab === "agregar" ? "nav active" : "nav"} onClick={() => { setTab("agregar"); setError(""); }}><CirclePlus size={19}/> <span>Agregar</span></button>
           <button className={tab === "ajustes" ? "nav active" : "nav"} onClick={() => { setTab("ajustes"); setError(""); }}><Settings2 size={19}/> <span>Ajustes</span></button>
         </nav>
         <button className="logout" onClick={() => { if (supabase) void supabase.auth.signOut(); }}><LogOut size={17}/> Cerrar sesión</button>
       </aside>
       <main className="appMain">
-        <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1><p className="mv-page-subtitle">{({inicio:"Una mirada clara a tus finanzas personales.",movimientos:"Revisá y gestioná todos tus movimientos en un solo lugar.",agregar:"Registrá gastos e ingresos de manera rápida.",ajustes:"Organizá categorías, cuentas y opciones de respaldo."} as const)[tab]}</p></div><button className="subtle" onClick={() => void cargar()} disabled={loading}><RefreshCcw size={16}/> {loading ? "Cargando…" : "Actualizar"}</button></header>
+        <header className="top"><div><div className="overline">MERCA / FINANZAS PERSONALES</div><h1>{({ inicio: "Tu resumen", movimientos: "Movimientos", inversiones: "Inversiones", agregar: "Nuevo movimiento", ajustes: "Ajustes" } as const)[tab]}</h1><p className="mv-page-subtitle">{({inicio:"Una mirada clara a tus finanzas personales.",movimientos:"Revisá y gestioná todos tus movimientos en un solo lugar.",inversiones:"Controlá tus aportes sin mezclarlos con los gastos.",agregar:"Registrá gastos e ingresos de manera rápida.",ajustes:"Organizá categorías, cuentas y opciones de respaldo."} as const)[tab]}</p></div><button className="subtle" onClick={() => void cargar()} disabled={loading}><RefreshCcw size={16}/> {loading ? "Cargando…" : "Actualizar"}</button></header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status" onClick={() => setNotice("")}>{notice} ×</div>}
         {tab === "inicio" && <InicioPanel
@@ -322,6 +327,7 @@ export default function App() {
             onCambiarEstado={(id, estado) => void actualizarEstado(id, estado)}
           />
         )}
+        {tab === "inversiones" && <InversionesPanel movimientos={movimientos} categorias={categorias} cuentas={cuentas} busy={busy} onEditar={setEditando} onCambiarEstado={(id,estado)=>void actualizarEstado(id,estado)} onAgregar={()=>{setTipoNuevo("inversion");setCategoriaNueva("");setCuentaNueva("");setTab("agregar");}} />}
         {tab === "agregar" && <NuevoMovimientoPanel
           tipo={tipoNuevo} monto={montoNuevo} fecha={fechaNueva} categoriaId={categoriaNueva}
           cuentaId={cuentaNueva} destinatario={destinatarioNuevo} descripcion={descripcionNueva}
@@ -340,8 +346,8 @@ export default function App() {
           onExportar={exportarCSV}
         />}
       </main>
-      {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
-      <nav className="bottomNav" aria-label="Navegación móvil"><button className={tab==="inicio"?"selected":""} onClick={()=>setTab("inicio")}><Home size={22}/>Inicio</button><button className={tab==="movimientos"?"selected":""} onClick={()=>setTab("movimientos")}><ListFilter size={22}/>Historial</button><button className={tab==="agregar"?"selected":""} onClick={()=>setTab("agregar")}><CirclePlus size={22}/>Agregar</button><button className={tab==="ajustes"?"selected":""} onClick={()=>setTab("ajustes")}><Settings2 size={22}/>Ajustes</button></nav>
+      {editando && <EditarMovimiento key={editando.id} movimiento={editando} categorias={categorias} cuentas={cuentas} busy={busy} onSave={guardarEdicion} onClose={() => setEditando(null)} />}
+      <nav className="bottomNav" aria-label="Navegación móvil"><button className={tab==="inicio"?"selected":""} onClick={()=>setTab("inicio")}><Home size={22}/>Inicio</button><button className={tab==="movimientos"?"selected":""} onClick={()=>setTab("movimientos")}><ListFilter size={22}/>Historial</button><button className={tab==="inversiones"?"selected":""} onClick={()=>setTab("inversiones")}><TrendingUp size={22}/>Invertir</button><button className={tab==="agregar"?"selected":""} onClick={()=>setTab("agregar")}><CirclePlus size={22}/>Agregar</button><button className={tab==="ajustes"?"selected":""} onClick={()=>setTab("ajustes")}><Settings2 size={22}/>Ajustes</button></nav>
     </div>
   );
 }
