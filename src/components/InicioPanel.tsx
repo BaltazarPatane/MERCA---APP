@@ -24,7 +24,8 @@ export default function InicioPanel({movimientos,categorias,periodo,mes,dia,desd
   const confirmados=enPeriodo.filter(m=>m.estado==="confirmado");
   const ingresos=confirmados.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+Number(m.monto),0);
   const gastos=confirmados.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+Number(m.monto),0);
-  const balance=ingresos-gastos;
+  const inversiones=confirmados.filter(m=>m.tipo==="inversion").reduce((s,m)=>s+Number(m.monto),0);
+  const balance=ingresos-gastos-inversiones;
   const nombres=new Map(categorias.map(c=>[c.id,c.nombre]));
   const distribucion=useMemo(()=>{
     const suma=new Map<string,number>();
@@ -51,7 +52,7 @@ export default function InicioPanel({movimientos,categorias,periodo,mes,dia,desd
   const recientes=[...enPeriodo].sort((a,b)=>(b.fecha+" "+(b.hora||"")).localeCompare(a.fecha+" "+(a.hora||""))).slice(0,5);
   return <div className="homeV2">
     <section className="mv-filters homeV2-filters" aria-label="Filtros del resumen">
-      <div className="mv-filters-header"><div className="mv-filters-title"><CalendarDays size={18}/><h2>Período del resumen</h2></div><span className="homeV2-hint">Solo ingresos y gastos confirmados</span></div>
+      <div className="mv-filters-header"><div className="mv-filters-title"><CalendarDays size={18}/><h2>Período del resumen</h2></div><span className="homeV2-hint">Solo movimientos confirmados</span></div>
       <div className="mv-filter-grid homeV2-filter-grid">
         <label className="mv-field"><span>Período</span><span className="mv-control mv-select"><CalendarDays size={17}/><select value={periodo} onChange={e=>onPeriodo(e.target.value)}><option value="mes">Mes</option><option value="dia">Día</option><option value="rango">Rango de fechas</option><option value="todo">Todo el historial</option></select><ChevronDown className="mv-chevron" size={16}/></span></label>
         {periodo==="mes"&&<label className="mv-field"><span>Mes</span><span className="mv-control mv-date-control"><input type="month" value={mes} onChange={e=>onMes(e.target.value)}/></span></label>}
@@ -62,7 +63,8 @@ export default function InicioPanel({movimientos,categorias,periodo,mes,dia,desd
     <section className="homeV2-stats" aria-label="Balance">
       <article className="homeV2-stat homeV2-expenses"><span className="homeV2-stat-icon"><ArrowUpRight size={24}/></span><div><p>Gastos del período</p><strong>{money(gastos)}</strong><small>Movimientos confirmados</small></div></article>
       <article className="homeV2-stat homeV2-income"><span className="homeV2-stat-icon"><ArrowDownLeft size={24}/></span><div><p>Ingresos del período</p><strong>{money(ingresos)}</strong><small>Registrados desde la web</small></div></article>
-      <article className="homeV2-stat homeV2-balance"><span className="homeV2-stat-icon"><Wallet size={24}/></span><div><p>Balance del período</p><strong className={balance<0?"homeV2-negative":""}>{money(balance)}</strong><small>Ingresos menos gastos</small></div></article>
+      <article className="homeV2-stat homeV2-investments"><span className="homeV2-stat-icon"><ChartNoAxesCombined size={24}/></span><div><p>Inversiones del período</p><strong>{money(inversiones)}</strong><small>Aportes confirmados</small></div></article>
+      <article className="homeV2-stat homeV2-balance"><span className="homeV2-stat-icon"><Wallet size={24}/></span><div><p>Balance disponible</p><strong className={balance<0?"homeV2-negative":""}>{money(balance)}</strong><small>Ingresos − gastos − inversiones</small></div></article>
     </section>
     <div className="homeV2-analysis">
       <section className="homeV2-panel">
@@ -82,7 +84,7 @@ export default function InicioPanel({movimientos,categorias,periodo,mes,dia,desd
     </div>
     <section className="homeV2-panel">
       <header className="homeV2-heading homeV2-recent-head"><div><h2><ListFilter size={19}/>Últimos movimientos</h2><p>Operaciones del período seleccionado</p></div><button className="homeV2-text-button" type="button" onClick={()=>onHistorial(false)}>Ver todos <ArrowRight size={16}/></button></header>
-      {recientes.length?<div className="homeV2-recent-list">{recientes.map(m=><div className="homeV2-recent-row" key={m.id}><span className={"homeV2-recent-icon "+(m.tipo==="ingreso"?"income":"")} >{m.tipo==="ingreso"?<ArrowDownLeft size={19}/>:<ArrowUpRight size={19}/>}</span><div className="homeV2-recent-info"><strong>{m.destinatario || (m.tipo==="ingreso"?"Ingreso":m.tipo==="transferencia"?"Transferencia":"Gasto")}</strong><small>{(m.categoria_id&&nombres.get(m.categoria_id))||"Sin categoría"} · {fecha(m.fecha)} · {origen(m)}</small></div><span className={"homeV2-recent-amount "+(m.tipo==="ingreso"?"income":"")}>{m.tipo==="ingreso"?"+":m.tipo==="gasto"?"−":""}{money(Number(m.monto))}</span><span className={"homeV2-recent-status "+m.estado}>{m.estado==="confirmado"?"Confirmado":m.estado==="descartado"?"Descartado":"Pendiente"}</span></div>)}</div>:<div className="homeV2-empty"><ListFilter size={28}/><p>Sin movimientos para el período seleccionado.</p></div>}
+      {recientes.length?<div className="homeV2-recent-list">{recientes.map(m=><div className="homeV2-recent-row" key={m.id}><span className={"homeV2-recent-icon "+(m.tipo==="ingreso"?"income":m.tipo==="inversion"?"investment":"")} >{m.tipo==="ingreso"?<ArrowDownLeft size={19}/>:<ArrowUpRight size={19}/>}</span><div className="homeV2-recent-info"><strong>{m.destinatario || (m.tipo==="ingreso"?"Ingreso":m.tipo==="transferencia"?"Transferencia":m.tipo==="inversion"?"Inversión":"Gasto")}</strong><small>{(m.categoria_id&&nombres.get(m.categoria_id))||"Sin categoría"} · {fecha(m.fecha)} · {origen(m)}</small></div><span className={"homeV2-recent-amount "+(m.tipo==="ingreso"?"income":m.tipo==="inversion"?"investment":"")}>{m.tipo==="ingreso"?"+":m.tipo==="gasto"||m.tipo==="inversion"?"−":""}{money(Number(m.monto))}</span><span className={"homeV2-recent-status "+m.estado}>{m.estado==="confirmado"?"Confirmado":m.estado==="descartado"?"Descartado":"Pendiente"}</span></div>)}</div>:<div className="homeV2-empty"><ListFilter size={28}/><p>Sin movimientos para el período seleccionado.</p></div>}
     </section>
     <div className="homeV2-actions">
       <button className="homeV2-primary-action" type="button" onClick={onAgregar}><CirclePlus size={19}/> Agregar movimiento</button>
