@@ -4,9 +4,9 @@
 
 # MERCA
 
-### Aplicación web de finanzas personales con registro de gastos desde iPhone
+### Finanzas personales, registro automático de gastos y seguimiento de inversiones
 
-**Desarrollo web · Automatización iOS · OCR · Bases de datos · Procesamiento de comprobantes**
+**Ingeniería de software · Desarrollo web · Automatización iOS · OCR · PostgreSQL**
 
 ![React](https://img.shields.io/badge/React-18-149ECA?style=flat-square&logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
@@ -24,13 +24,13 @@
 
 ## Descripción general
 
-**MERCA** es una aplicación web para registrar, consultar y analizar ingresos y gastos personales, diseñada para utilizarse desde una computadora o un iPhone.
+**MERCA** es una aplicación web para registrar, consultar y analizar **ingresos, gastos e inversiones** desde una computadora o un iPhone. Combina carga manual de movimientos con el registro automático de comprobantes mediante **Atajos de iOS** y una plataforma de análisis financiero desarrollada sobre Supabase.
 
-El proyecto surge de una necesidad cotidiana: reducir la carga manual de gastos realizados mediante billeteras virtuales y, al mismo tiempo, conservar un historial organizado que permita entender **cuánto se gasta, en qué categorías y durante qué período**.
+El proyecto surge de una necesidad cotidiana: evitar cargar cada gasto a mano, conservar un historial trazable y distinguir **lo que se consume, lo que se ingresa y lo que se destina a inversiones**. La interfaz incorpora estadísticas y filtros por período sin mezclar esos tres flujos.
 
 Su característica principal es la integración con **Atajos de iOS**. Desde el menú *Compartir* de un comprobante en PDF o imagen, un atajo extrae el texto mediante OCR o lectura del documento, solicita una categoría y envía los datos a una función de Supabase. El servidor interpreta la información, evita registros duplicados y guarda el gasto. La aplicación web permite luego consultar, corregir y analizar los movimientos.
 
-La solución utiliza servicios con opciones gratuitas, evita depender de WhatsApp o de una aplicación iOS nativa y no necesita almacenar las imágenes originales de los comprobantes.
+La solución aprovecha servicios con opciones gratuitas, evita depender de WhatsApp o de una aplicación iOS nativa y no necesita almacenar las imágenes originales de los comprobantes. Las inversiones se registran como **aportes de dinero**, no como una cartera valuada a precios de mercado.
 
 ## Funcionalidades principales
 
@@ -40,13 +40,14 @@ La solución utiliza servicios con opciones gratuitas, evita depender de WhatsAp
 | **Reconocimiento de comprobantes** | Extracción y normalización de importes, fechas, horas, referencias de operación y destinatarios cuando están presentes. |
 | **Gastos automáticos** | Los comprobantes compartidos se clasifican como **gastos**, independientemente del titular de origen o destino. |
 | **Ingresos manuales** | Se registran exclusivamente desde la aplicación web. |
-| **Inversiones manuales** | Aportes con categorías independientes, historial exclusivo y descuento del balance disponible sin mezclarse con los gastos. |
+| **Inversiones manuales** | Aportes con categorías independientes, activo/plataforma, cuenta de origen opcional e historial exclusivo. |
 | **Validación y duplicados** | Comprobación de datos, referencias de operación y huellas de texto para evitar altas repetidas. |
 | **Revisión excepcional** | Operaciones con datos insuficientes o formatos no confiables requieren intervención desde la web. |
-| **Inicio** | Resumen de ingresos, gastos y balance; gráfico por categorías; evolución mensual y últimos movimientos. |
-| **Movimientos** | Historial con búsqueda por destinatario, filtros de fechas y estado, edición, confirmación y descarte. |
-| **Nuevo movimiento** | Carga manual de ingresos y gastos, fecha, categoría, descripción y cuenta opcional cuando existe una cuenta configurada. |
-| **Ajustes** | Creación, cambio de nombre, activación y desactivación de categorías; consulta de cuentas y exportación CSV. |
+| **Inicio** | Cuatro indicadores: ingresos, gastos, inversiones y **balance disponible**; gráficos de gastos, evolución mensual y últimos movimientos. |
+| **Movimientos** | Historial de gastos e ingresos, con filtros, búsqueda por destinatario, edición y revisión de pendientes. |
+| **Inversiones** | Pantalla propia con filtros por período, categoría y estado, búsqueda de instrumentos, capital aportado y distribución por categoría. |
+| **Nuevo movimiento** | Carga manual de **ingresos, gastos o inversiones**, con fecha, categoría, importe y cuenta opcional. |
+| **Ajustes** | Administración independiente de categorías de ingresos, gastos e inversiones; consulta de cuentas y exportación CSV. |
 | **Acceso** | Inicio de sesión mediante Supabase Authentication y separación de información por usuario. |
 | **Interfaz** | Diseño responsive en modo oscuro, favicon y acceso directo desde la pantalla de inicio del iPhone. |
 
@@ -74,7 +75,9 @@ flowchart LR
     G --> J["PostgreSQL"]
     H --> J
     J --> K["Web MERCA"]
-    K --> L["Historial · Filtros · Gráficos"]
+    M["Carga manual · Ingreso / Gasto / Inversión"] --> K
+    K -->|"Operaciones bajo RLS"| J
+    K --> L["Historiales · Filtros · Balance · Gráficos"]
 ```
 
 ### Procesamiento y criterio de confiabilidad
@@ -93,7 +96,7 @@ El sistema distingue tres resultados visibles desde Atajos:
 | **Transacción a confirmar** | La operación quedó registrada, pero requiere revisión. |
 | **Error al cargar el movimiento** | No se pudo registrar de forma válida. |
 
-**Regla de clasificación:** cualquier comprobante compartido mediante Atajos se trata como gasto. **Los ingresos se cargan desde la aplicación web**, no desde el atajo. Esta decisión simplifica el flujo y evita solicitar el tipo de operación cada vez que se comparte un archivo.
+**Regla de clasificación:** cualquier comprobante compartido mediante Atajos se trata como **gasto**. Tanto los **ingresos como las inversiones se cargan manualmente desde la web**. El reconocimiento de comprobantes no registra automáticamente compras de activos financieros ni rentabilidades.
 
 ## Interfaz y funcionalidades
 
@@ -101,17 +104,34 @@ La aplicación dispone de **cinco pestañas**. El estilo visual se construyó co
 
 ### Inicio — Resumen financiero
 
-![Inicio de MERCA — demostración con datos ficticios](docs/img/ejemplo-inicio.svg)
+![Inicio de MERCA con cuatro indicadores — representación con datos ficticios](docs/img/ejemplo-inicio.svg)
 
-La pantalla principal concentra la información del período seleccionado: **ingresos, gastos, inversiones y balance disponible**, distribución porcentual de gastos por categoría, evolución de los últimos seis meses y movimientos recientes. Los gráficos utilizan movimientos reales consultados desde la base de datos; los pendientes y descartados no se contabilizan como gastos o ingresos confirmados.
+La pantalla principal concentra cuatro indicadores para el período seleccionado: **gastos de consumo, ingresos, inversiones realizadas y balance disponible**. También ofrece un gráfico circular de gastos por categoría, evolución mensual de gastos confirmados y últimos movimientos.
+
+Los importes del sistema se calculan con los registros consultados desde Supabase; **los movimientos pendientes y descartados no modifican el balance**. Las inversiones se contabilizan por separado y **no aparecen en el gráfico de gastos de consumo**.
 
 Los filtros permiten consultar un **mes, día, rango de fechas o todo el historial**. También es posible acceder desde Inicio a los movimientos pendientes.
 
-### Movimientos — Historial y corrección
+### Cálculo del balance disponible
 
-![Historial de MERCA — demostración con datos ficticios](docs/img/ejemplo-movimientos.svg)
+El balance representa el flujo disponible del período seleccionado, no el saldo real de una cuenta bancaria ni el patrimonio acumulado:
 
-El historial presenta cada operación con su **categoría, destinatario, fecha, origen, cuenta asociada cuando existe, estado e importe**. Incluye:
+**Balance disponible = ingresos confirmados − gastos confirmados − inversiones confirmadas**
+
+| Ejemplo ilustrativo (octubre de 2026) | Importe |
+| --- | ---: |
+| Ingresos | $450.000 |
+| Gastos de consumo | −$110.500 |
+| Aportes a inversiones | −$95.000 |
+| **Balance disponible** | **$244.500** |
+
+Las transferencias entre cuentas propias no se cuentan como ingresos o gastos del conjunto. Una inversión se resta cuando queda **Confirmada**; si está pendiente o descartada, no afecta el cálculo.
+
+### Movimientos — Gastos e ingresos
+
+![Historial de MERCA con navegación de cinco pestañas y datos ficticios](docs/img/ejemplo-movimientos.svg)
+
+El historial de **gastos e ingresos** presenta cada operación con **categoría, destinatario, fecha, origen, cuenta asociada cuando existe, estado e importe**. Las inversiones tienen una pestaña e historial independientes. Incluye:
 
 - Filtros combinables por período y estado.
 - Búsqueda por nombre, alias, CBU o CVU del destinatario.
@@ -121,23 +141,39 @@ El historial presenta cada operación con su **categoría, destinatario, fecha, 
 
 La columna **Cuenta** muestra la cuenta registrada cuando está vinculada al movimiento. En caso contrario, se indica **«No asignada»**; el sistema no presupone qué cuenta se utilizó.
 
-### Inversiones — Aportes y seguimiento
+### Inversiones — Capital aportado e historial propio
 
-MERCA permite crear **categorías de inversión independientes** (por ejemplo, Fondo común, Acciones o Plazo fijo) y registrar aportes manuales con importe, fecha, cuenta de origen opcional, activo/plataforma y descripción. La pestaña **Inversiones** ofrece historial, filtros por período, categoría y estado, edición y distribución de aportes.
+![Nueva pestaña Inversiones de MERCA — ejemplo con valores y titulares ficticios](docs/img/ejemplo-inversiones.svg)
 
-Los importes invertidos **reducen el balance disponible**, pero no se cuentan como gastos de consumo ni se incluyen en el gráfico de gastos. La sección registra dinero aportado; **no calcula rentabilidad, cotizaciones ni valor de mercado de activos**. Consultá [implementación y migración de inversiones](docs/inversiones.md).
+La sección de **Inversiones** incorpora una experiencia propia de seguimiento de aportes. Está organizada en tres indicadores: **invertido en el período**, **capital aportado histórico** y **cantidad de operaciones**. Debajo se encuentran los filtros y el historial, con la distribución del importe invertido por categoría.
+
+- **Registro:** desde *Nueva inversión* se abre el formulario con el tercer tipo seleccionado. Se especifican importe, fecha, una categoría de inversión y, opcionalmente, activo/instrumento/plataforma, descripción y cuenta de origen.
+- **Categorías independientes:** por ejemplo *Fondos comunes*, *Acciones*, *Plazo fijo* o *Criptomonedas*. Se crean y administran desde Ajustes.
+- **Consulta y revisión:** filtros por mes, rango o todo el historial, además de categoría y estado. Búsqueda por activo/plataforma o descripción, edición de operaciones y acciones sobre pendientes.
+- **Análisis:** total de aportes confirmados del período, histórico acumulado de aportes y desglose por categoría.
+- **Balance:** los aportes confirmados reducen el dinero disponible, pero no se suman a los gastos de consumo.
+
+<p align="center">
+  <img src="docs/img/ejemplo-iphone-inversiones.svg" width="290" alt="Vista móvil ilustrativa de Inversiones en MERCA">
+</p>
+
+<p align="center"><em>Vista de ejemplo en iPhone, con navegación inferior y datos ficticios.</em></p>
+
+> **Alcance contable:** MERCA registra capital aportado en pesos. El indicador de capital histórico **no representa el valor actual de las inversiones**. No existe cotización automática, cálculo de rentabilidad, intereses, rescates, ventas ni valorización de carteras.
+
+Para el esquema de datos y el procedimiento de activación consultá la [documentación técnica de Inversiones](docs/inversiones.md).
 
 ### Nuevo movimiento — Carga manual
 
-![Nuevo movimiento en MERCA — demostración con datos ficticios](docs/img/ejemplo-nuevo-movimiento.svg)
+![Formulario de MERCA con tipo Inversión seleccionado y datos ficticios](docs/img/ejemplo-nuevo-movimiento.svg)
 
-El formulario permite registrar **gastos, ingresos e inversiones** con importe en pesos argentinos, fecha, categoría y descripción. Los gastos admiten un destinatario o comercio. Si el usuario tiene cuentas configuradas, puede asociar opcionalmente la cuenta de origen o destino.
+El formulario permite registrar **gastos, ingresos e inversiones** mediante un selector de tres opciones. Comparten importe en pesos argentinos, fecha, categoría propia del tipo seleccionado y descripción opcional. Los gastos admiten destinatario o comercio; las inversiones, activo, instrumento o plataforma. Cuando existen cuentas configuradas, se puede asociar una cuenta de origen (gasto o inversión) o de destino (ingreso).
 
 Se incluyen validación de importes, categorías activas según el tipo de movimiento y un botón para limpiar el formulario. Las operaciones manuales se crean **confirmadas**.
 
 ### Ajustes — Categorías y respaldo
 
-![Ajustes de MERCA — demostración con datos ficticios](docs/img/ejemplo-ajustes.svg)
+![Ajustes con categorías de inversión y cuentas ficticias](docs/img/ejemplo-ajustes.svg)
 
 Las categorías de **gastos, ingresos e inversiones** se pueden **crear, renombrar, activar y desactivar** sin eliminar los movimientos históricos que las utilizan. También se muestran las cuentas existentes en modo consulta, la identidad de la sesión y la exportación de movimientos a **CSV**, compatible con herramientas como Excel.
 
@@ -177,7 +213,7 @@ flowchart TB
 | **Supabase Edge Functions** | Recepción HTTPS y procesamiento de comprobantes. |
 | **Atajos de iOS / OCR** | Captura y extracción de texto al compartir archivos. |
 | **Cloudflare Pages** | Alojamiento y publicación del frontend conectado a GitHub. |
-| **GitHub Actions** | Verificación automática de TypeScript y compilación. |
+| **GitHub Actions** | Pruebas del cálculo financiero (`npm test`), verificación de TypeScript y compilación (`npm run build`). |
 
 ### Modelo de datos
 
@@ -185,11 +221,13 @@ La información principal se distribuye en tres tablas:
 
 | Tabla | Datos relevantes |
 | --- | --- |
-| `categorias` | Usuario, nombre, tipo (`gasto`/`ingreso`), color y estado activo. |
+| `categorias` | Usuario, nombre, tipo (`gasto`, `ingreso`, `inversion`), color y estado activo. |
 | `cuentas` | Usuario, nombre, tipo de cuenta, moneda y estado. |
-| `movimientos` | Usuario, tipo, importe, fecha, hora, categoría, cuentas asociadas, destinatario, descripción, origen del registro, referencia externa y estado. |
+| `movimientos` | Usuario, tipo (`gasto`, `ingreso`, `inversion` y transferencias existentes), importe, fecha, hora, categoría, cuentas asociadas, destinatario, descripción, origen, referencia y estado. |
 
-Los movimientos admiten los estados `confirmado`, `pendiente_revision` y `descartado`. La base de datos utiliza claves foráneas y políticas RLS para evitar que un usuario consulte o modifique registros ajenos.
+Los movimientos admiten los estados `confirmado`, `pendiente_revision` y `descartado`. Las categorías de inversiones pertenecen a un tipo distinto y no se mezclan con las de ingresos o gastos. La base de datos utiliza claves foráneas y políticas RLS para evitar que un usuario consulte o modifique registros ajenos.
+
+La incorporación de inversiones se realizó mediante una [migración SQL transaccional](supabase/migrations/20261020_inversiones.sql) que amplía los valores permitidos de `tipo` en las tablas `categorias` y `movimientos`, sin borrar registros anteriores. La migración **debe ejecutarse por separado en cada proyecto Supabase**: publicar el frontend no la aplica automáticamente.
 
 La información se guarda de forma estructurada; **no se conservan los PDF, las imágenes ni el texto OCR completo** como historial de comprobantes.
 
@@ -223,16 +261,25 @@ Iniciar el entorno local:
 npm run dev
 ```
 
-Para compilar y previsualizar:
+Para ejecutar las pruebas de la fórmula de balance, compilar y previsualizar:
 
 ```bash
+npm test
 npm run build
 npm run preview
 ```
 
-> El repositorio incluye la aplicación web y una migración para `destinatario`, pero **no incluye una instalación automatizada del esquema completo de PostgreSQL ni el despliegue completo de la Edge Function**. Para replicar toda la solución es necesario configurar esos componentes en un proyecto Supabase propio.
+Las pruebas comprueban que **inversiones y gastos no se contabilicen dos veces**, que pendientes y descartados no alteren el balance y que las transferencias entre cuentas propias no afecten el disponible agregado.
 
-### 2. Publicar en Cloudflare Pages
+> El repositorio incluye la aplicación web y **migraciones para `destinatario` e `inversiones`**, pero **no incluye una instalación automatizada del esquema completo de PostgreSQL ni el despliegue completo de la Edge Function**. Para replicar toda la solución es necesario configurar esos componentes en un proyecto Supabase propio.
+
+### 2. Activar Inversiones en Supabase
+
+Antes de registrar aportes en una instalación existente, abrir **Supabase → SQL Editor**, copiar y ejecutar íntegramente [la migración `20261020_inversiones.sql`](supabase/migrations/20261020_inversiones.sql) y verificar que se hayan habilitado los tipos de inversión en `categorias` y `movimientos`.
+
+La migración conserva registros anteriores, claves foráneas y políticas RLS; si encuentra restricciones no previstas se revierte. **Si todavía no se ejecutó, el formulario web de inversiones puede aparecer, pero Supabase rechazará su creación.** Consultar el [procedimiento detallado](docs/inversiones.md).
+
+### 3. Publicar en Cloudflare Pages
 
 La configuración del frontend es:
 
@@ -247,7 +294,7 @@ La configuración del frontend es:
 
 Los commits integrados a `main` pueden desplegarse automáticamente a través de la integración de GitHub con Cloudflare Pages. La configuración del backend de Supabase es independiente.
 
-### 3. Configurar el atajo en el iPhone
+### 4. Configurar el atajo en el iPhone
 
 El atajo de uso personal recibe contenido desde el menú **Compartir** de iOS, obtiene texto del PDF o imagen, permite elegir categoría y envía:
 
@@ -287,9 +334,9 @@ El endpoint de ingesta desde Atajos está configurado para un **usuario propieta
 | **Reconocimiento** | Tratamiento de formatos reales de Mercado Pago, fechas en español, centavos extraídos de PDF e identificación de destinatarios. |
 | **Web inicial** | React, autenticación, filtros, historial, resumen, cargas manuales y CSV. |
 | **Gestión** | Edición de movimientos, altas y cambios en categorías, revisión de pendientes y asociación opcional de cuentas. |
-| **Inversiones** | Tipo de movimiento y categorías propios, historial filtrable y cálculo independiente del balance disponible. |
+| **Inversiones** | Tercer tipo manual, categorías propias, historial con filtros y resumen de capital aportado. Migración SQL de integridad y cálculo del balance disponible. |
 | **Publicación** | Integración GitHub + Cloudflare Pages, variables de entorno públicas y compilaciones automáticas. |
-| **Diseño v2** | Rediseño responsive de Inicio, Movimientos, Nuevo movimiento y Ajustes; identidad gráfica e ícono para iPhone. |
+| **Diseño v2** | Rediseño responsive de las cinco pestañas (Inicio, Movimientos, Inversiones, Agregar y Ajustes), identidad gráfica e ícono de acceso directo para iPhone. |
 
 ## Estructura del repositorio
 
@@ -308,16 +355,22 @@ MERCA-APP/
 │   │   ├── AjustesPanel.tsx
 │   │   ├── GestionCategorias.tsx
 │   │   └── EditarMovimiento.tsx
-│   ├── lib/supabase.ts
+│   ├── lib/
+│   │   ├── supabase.ts
+│   │   └── finanzas.ts             # Balance sin doble contabilización
 │   ├── App.tsx
 │   ├── main.tsx
 │   ├── styles.css
 │   └── types.ts
-├── supabase/migrations/          # Migración del destinatario
+├── supabase/migrations/
+│   ├── 20261019_destinatario_movimientos.sql
+│   └── 20261020_inversiones.sql
+├── tests/finanzas.test.mjs       # Pruebas de cálculos financieros
 ├── docs/
 │   ├── comprobantes.md
-│   └── img/                      # Imágenes ilustrativas del proyecto
-├── .github/workflows/            # Verificación de compilación
+│   ├── inversiones.md
+│   └── img/                      # Portada y seis vistas ilustrativas
+├── .github/workflows/            # Test y build en GitHub Actions
 ├── .env.example
 ├── index.html
 ├── package.json
@@ -332,8 +385,10 @@ La versión actual cubre el flujo de **gastos enviados desde iPhone** y la admin
 - Si el importe, fecha o estructura son ambiguos, el sistema puede requerir revisión o rechazar la solicitud.
 - La exportación CSV utiliza los movimientos cargados en la sesión; la consulta solicita hasta **3000 registros** y el límite efectivo puede depender de la configuración de Supabase. **No equivale a un sistema de backup integral**.
 - No hay restauración de respaldos ni paginación histórica completa.
+- Inversiones registra **aportes**, no valor de mercado, ganancias, dividendos, rentabilidad o rescates automáticos.
+- El balance disponible es un resultado por período, **no un saldo bancario conciliado ni el patrimonio total**.
 - Las cuentas pueden mostrarse y asociarse a movimientos manuales; todavía no existe administración completa de cuentas desde la web.
-- Para activar **Inversiones** en una base de datos existente es necesario ejecutar [la migración SQL](supabase/migrations/20261020_inversiones.sql), que amplía los tipos permitidos sin borrar registros.
+- Para activar **Inversiones** en una base de datos existente es necesario ejecutar [la migración SQL](supabase/migrations/20261020_inversiones.sql), que amplía los tipos permitidos sin borrar registros. **No se ejecuta automáticamente desde GitHub ni Cloudflare.**
 - El frontend se despliega desde GitHub, pero la ingesta de comprobantes requiere desplegar y configurar la Edge Function de manera independiente.
 
 ## Autor
