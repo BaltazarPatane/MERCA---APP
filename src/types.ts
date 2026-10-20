@@ -1,6 +1,6 @@
 export type Movimiento = {
   id: string;
-  tipo: "gasto" | "ingreso" | "transferencia";
+  tipo: "gasto" | "ingreso" | "transferencia" | "inversion";
   monto: number | string;
   moneda: string;
   fecha: string;
@@ -16,7 +16,7 @@ export type Movimiento = {
 export type Categoria = {
   id: string;
   nombre: string;
-  tipo: "gasto" | "ingreso";
+  tipo: "gasto" | "ingreso" | "inversion";
   activa: boolean;
   color: string | null;
 };
