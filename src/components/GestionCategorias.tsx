@@ -21,7 +21,7 @@ export default function GestionCategorias({userId,categorias,onReload,onError,on
     setBusyId("crear");onError("");
     const {error}=await supabase.from("categorias").insert({user_id:userId,nombre:limpio,tipo,activa:true});
     setBusyId(null);
-    if(error){onError("No se pudo crear la categoría: "+error.message);return;}
+    if(error){onError(tipo==="inversion" && error.code==="23514" ? "Para crear categorías de inversión, ejecutá primero la migración SQL de Inversiones en Supabase." : "No se pudo crear la categoría: "+error.message);return;}
     setNombre("");onNotice("Categoría creada");await onReload();
   }
 
