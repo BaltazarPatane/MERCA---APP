@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, ChartNoAxesCombined, CheckCircle2, ChevronDown, CirclePlus, Clock3, ListFilter, PieChart, Wallet } from "lucide-react";
 import type { Categoria, Movimiento } from "../types";
+import { resumenFinanciero } from "../lib/finanzas";
 
 type Props = {
   movimientos: Movimiento[]; categorias: Categoria[];
@@ -22,10 +23,7 @@ export default function InicioPanel({movimientos,categorias,periodo,mes,dia,desd
     return true;
   }),[movimientos,periodo,mes,dia,desde,hasta]);
   const confirmados=enPeriodo.filter(m=>m.estado==="confirmado");
-  const ingresos=confirmados.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+Number(m.monto),0);
-  const gastos=confirmados.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+Number(m.monto),0);
-  const inversiones=confirmados.filter(m=>m.tipo==="inversion").reduce((s,m)=>s+Number(m.monto),0);
-  const balance=ingresos-gastos-inversiones;
+  const { ingresos, gastos, inversiones, balanceDisponible: balance } = resumenFinanciero(enPeriodo);
   const nombres=new Map(categorias.map(c=>[c.id,c.nombre]));
   const distribucion=useMemo(()=>{
     const suma=new Map<string,number>();
