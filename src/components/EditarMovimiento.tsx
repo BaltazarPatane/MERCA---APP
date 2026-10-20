@@ -4,7 +4,7 @@ import { montoParaBD } from "../types";
 import type { Categoria, Movimiento } from "../types";
 
 export type MovimientoEditado = {
-  tipo: "gasto" | "ingreso" | "transferencia";
+  tipo: "gasto" | "ingreso" | "transferencia" | "inversion";
   monto: string;
   fecha: string;
   hora: string | null;
@@ -63,7 +63,7 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
       hora: hora || null,
       categoria_id: tipo === "transferencia" ? null : categoriaId,
       descripcion: descripcion.trim() || null,
-      destinatario: tipo === "gasto" ? (destinatario.trim() || null) : null,
+      destinatario: tipo === "gasto" || tipo === "inversion" ? (destinatario.trim() || null) : null,
       estado,
     });
   }
@@ -83,7 +83,7 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
               setCategoriaId(siguiente === movimiento.tipo ? movimiento.categoria_id ?? "" : "");
             }}>
               <option value="gasto">Gasto</option>
-              <option value="ingreso">Ingreso</option>
+              <option value="ingreso">Ingreso</option><option value="inversion">Inversión</option>
               <option value="transferencia" disabled={movimiento.tipo !== "transferencia"}>Transferencia propia</option>
             </select>
           </label>
@@ -105,7 +105,7 @@ export default function EditarMovimiento({ movimiento, categorias, busy, onSave,
               {opciones.map(c => <option key={c.id} value={c.id}>{c.nombre}{!c.activa ? " (inactiva)" : ""}</option>)}
             </select>
           </label>}
-          {tipo === "gasto" && <label>Destinatario o comercio (opcional)
+          {(tipo === "gasto" || tipo === "inversion") && <label>{tipo === "inversion" ? "Activo, instrumento o plataforma (opcional)" : "Destinatario o comercio (opcional)"}
             <input maxLength={120} value={destinatario} onChange={e => setDestinatario(e.target.value)} placeholder="Ej. Grido" />
           </label>}
           <label>Descripción
